@@ -177,8 +177,8 @@ def trend():
 
 
 def main():
-    # check_len()
-    trend()
+    check_len()
+    # trend()
 
     pass
 
