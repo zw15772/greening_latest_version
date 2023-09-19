@@ -1,7 +1,5 @@
 # coding='utf-8'
 import sys
-import semopy
-from bs4 import BeautifulSoup
 
 import lytools
 import pingouin
@@ -2354,8 +2352,141 @@ class trends_seasonal_feedback():
         # plt.tight_layout()
         # plt.show()
 
+class long_term_seasonal_feedbacks_window_anaysis():
+    def run(self):
+        self.window_extraction_trend()
+        pass
+
+    def window_extraction_trend(self):
+        fdir = result_root + rf'LAI_zscore\early_peak\\'
+        outdir = result_root + rf'\\window_analysis_trend\\early_peak\\'
+        T.mk_dir(outdir, force=True)
+        for f in os.listdir(fdir):
+            if not f.endswith('.npy'):
+                continue
+            fpath = join(fdir, f)
+            outf_i = join(outdir, f)
+            dic = T.load_npy(fpath)
+        window = 10
+
+        new_x_extraction_by_window_trend = {}
+        for pix in tqdm(dic):
+
+            time_series = dic[pix]
+            time_series = np.array(time_series)
+
+            time_series[time_series < -999] = np.nan
+            if np.isnan(np.nanmean(time_series)):
+                print('error')
+                continue
+            print(time_series)
+
+
+            new_x_extraction_by_window_trend[pix] = self.forward_window_extract_trend(time_series, window)
+
+
+        np.save(outf_i, new_x_extraction_by_window_trend)
+
+    pass
+
+    def forward_window_extract_anomaly(self, x, window):
+        # 前窗滤波
+        # window = window-1
+        # 不改变数据长度
+
+        if window < 0:
+            raise IOError('window must be greater than 0')
+        elif window == 0:
+            return x
+        else:
+            pass
+
+        x = np.array(x)
+
+        # new_x = np.array([])
+        # plt.plot(x)
+        # plt.show()
+        new_x_extraction_by_window=[]
+        for i in range(len(x)):
+            if i + window >= len(x):
+                continue
+            else:
+                anomaly = []
+                x_vals=[]
+                for w in range(window):
+                    x_val=(x[i + w])
+                    x_vals.append(x_val)
+                if np.isnan(np.nanmean(x_vals)):
+                    continue
+
+                # x_mean=np.nanmean(x_vals)
+
+                # for i in range(len(x_vals)):
+                #     if x_vals[0]==None:
+                #         continue
+                #     x_anomaly=x_vals[i]-x_mean
+                #
+                #     anomaly.append(x_anomaly)
+                new_x_extraction_by_window.append(x_vals)
+
+        return new_x_extraction_by_window
+
+    def forward_window_extract_trend(self, x, window): # extract 后在计算trend
+        # 前窗滤波
+        # window = window-1
+        # 不改变数据长度
+        # plt.plot(x)
+        # plt.show()
+
+
+        if window < 0:
+            raise IOError('window must be greater than 0')
+        elif window == 0:
+            return x
+        else:
+            pass
+
+        x = np.array(x)
+
+        # new_x = np.array([])
+        # plt.plot(x)
+        # plt.show()
+        new_x_trend_by_window=[]
+        for i in range(len(x)):
+            if i + window >= len(x):
+                continue
+            else:
+
+                x_vals=[]
+                for w in range(window):
+                    x_val=(x[i + w])
+                    x_vals.append(x_val)
+                if np.isnan(np.nanmean(x_vals)):
+                    continue
+                ## 计算trned
+                x_vals=np.array(x_vals)
+                x_vals[x_vals < -999] = np.nan
+                # r,p=stats.pearsonr(x_vals,range(len(x_vals)))
+                r1,p1=np.polyfit(x_vals,range(len(x_vals)),1)
+                a,b,r,p,q,=stats.linregress(x_vals,range(len(x_vals)))
+                print(r1,a)
+                # exit()
+                new_x_trend_by_window.append(r)
+
+
+        return new_x_trend_by_window
+
 
 class build_dataframe():
+    def __init__(self):
+
+        self.this_class_arr = result_root + 'Data_frame\detrend_zscore_monthly\\'
+
+        Tools().mk_dir(self.this_class_arr, force=True)
+        self.dff = self.this_class_arr + 'detrend_zscore_monthly.df'
+        self.P_PET_fdir = rf'C:\Users\pcadmin\Desktop\Data\Base_data\aridity_P_PET_dic\\'
+        pass
+
 
 
     def __init__(self):
@@ -2750,8 +2881,6 @@ class SEM_wen:
         # outf=self.outdir+'water_limited'
         outf = self.outdir + 'energy_limited_MCD'
         semopy.report(mod, outf)
-
-
 
 class anaysize_fluxnet():
     def __init__(self):
@@ -3620,8 +3749,9 @@ def main():
     # statistic_analysis().run()
     # frequency_analysis().run()
     # trends_seasonal_feedback().run()
+    long_term_seasonal_feedbacks_window_anaysis().run()
     # build_dataframe().run()
-    SEM_wen().run()
+    # SEM_wen().run()
     # anaysize_fluxnet().run()
 
 
