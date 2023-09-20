@@ -2044,7 +2044,6 @@ class frequency_analysis():
         Tools().mk_dir(self.this_class_arr, force=True)
 
 
-
         pass
 
     def run(self):
@@ -3778,7 +3777,7 @@ class ResponseFunction:  # figure 5 in paper
         # return df_early,dff
     def clean_df(self,df):
         df = df[df['row'] < 120]
-        df = df[df['HI_class'] == 'Humid']
+        # df = df[df['HI_class'] == 'Humid']
         # df = df[df['HI_class'] == 'Dryland']
         df = df[df['max_trend'] < 10]
         # df=df[df['early_peak_MCD']>0]
@@ -3790,53 +3789,57 @@ class ResponseFunction:  # figure 5 in paper
 
     def plot_response_func(self,df):
         T.print_head_n(df, 10)
+        z_val_name_list=['MCD','MOD','Trendy_ensemble','CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
+                          'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai', 'JULES_S2_lai',
+                          'LPJ-GUESS_S2_lai', 'LPX-Bern_S2_lai', 'SDGVM_S2_lai',
+                          'ORCHIDEE_S2_lai', 'VISIT_S2_lai', 'YIBs_S2_lai',]
 
         regions = ['Humid', 'Dryland']
         cm = 1 / 2.54
 
-        for region in regions:
-            plt.figure(figsize=(15 * cm, 7 * cm))
+        for z_val_name in z_val_name_list:
 
-            df_temp = df[df['HI_class'] == region]
-            x_var='peak_SMroot'
-            y_var='late_Temp'
-            z_var='late_MCD'
-            # threshold_SM_list_reverse = threshold_SM[::-1]
-            # threshold_Temp_list_reverse = threshold_temp[::-1]
+            for region in regions:
+                plt.figure(figsize=(15 * cm, 7 * cm))
 
-            # threshold_SM_list_str = [f'{i:.5f}' for i in threshold_SM_list_reverse]
-            # threshold_Temp_list_str = [f'{i:.5f}' for i in threshold_Temp_list_reverse]
+                df_temp = df[df['HI_class'] == region]
+                x_var='peak_SMroot'
+                y_var='late_Temp'
+                z_var=f'late_{z_val_name}'
 
-            x_bins = np.arange(-2, 2, 0.5)
-            y_bins = np.arange(-2, 2, 0.5)
-            for i in range(len(x_bins)):
-                if i >= len(x_bins) - 1:
-                    break
-                x_min = x_bins[i]
-                x_max = x_bins[i + 1]
-                df_temp_x = df_temp[df_temp[x_var] >= x_min]
-                df_temp_x = df_temp_x[df_temp_x[x_var] < x_max]
-                for j in range(len(y_bins)):
-                    if j >= len(y_bins) - 1:
-                        break
-                    y_min = y_bins[j]
-                    y_max = y_bins[j + 1]
-                    df_temp_y = df_temp_x[df_temp_x[y_var] >= y_min]
-                    df_temp_y = df_temp_y[df_temp_y[y_var] < y_max]
-                    z_list = df_temp_y[z_var].values.tolist()
-                    x_list = df_temp_y[x_var].values.tolist()
-                    y_list = df_temp_y[y_var].values.tolist()
-                    ax=sns.heatmap(z_list, annot=True, linewidths=0.75)
+                x_bins = np.arange(-1.5, 1.6, 0.5)
+                y_bins = np.arange(-1.5, 1.6, 0.5)
 
-                    # ax = sns.heatmap(, annot=label_matrix, linewidths=0.75,
-                    #                  yticklabels=threshold_early_list_str,
-                    #                  xticklabels=threshold_late_list_str, cmap='RdBu', vmin=-15, vmax=15,
-                    #                  cbar_kws={'label': 'Frenquency (%)', 'ticks': [-15, -10, -5, 0, 5, 10, 15]},
-                    #                  fmt='.1f')
+                matrix=[]
+                for i in range(len(y_bins)):
+                    if i==len(y_bins)-1:
+                        continue
 
+                    y_left=y_bins[i]
+                    y_right=y_bins[i+1]
 
+                    matrix_i=[]
+                    for j in range(len(x_bins)):
+                        if j==len(x_bins)-1:
+                            continue
+                        x_left=x_bins[j]
+                        x_right=x_bins[j+1]
 
+                        df_temp_i=df_temp[df_temp[x_var]>=x_left]
+                        df_temp_i=df_temp_i[df_temp_i[x_var]<x_right]
+                        df_temp_i=df_temp_i[df_temp_i[y_var]>=y_left]
+                        df_temp_i=df_temp_i[df_temp_i[y_var]<y_right]
+                        mean=np.nanmean(df_temp_i[z_var].tolist())
+                        matrix_i.append(mean)
+                    matrix.append(matrix_i)
+                matrix=np.array(matrix)
+                matrix=matrix[::-1,:]  # reverse
+                plt.imshow(matrix, cmap='RdBu', interpolation='nearest')
 
+                plt.title(f'{region} {z_val_name}')
+                # plt.show()
+                plt.savefig(self.outdir + f'{region}_{z_val_name}.pdf', dpi=300)
+                plt.close()
 
 
 
