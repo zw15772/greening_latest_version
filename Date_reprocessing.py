@@ -1402,7 +1402,7 @@ class Check_plot():
     def foo(self):
 
         # f='/Volumes/SSD_sumsang/project_greening/Result/detrend/extraction_during_late_growing_season_static/during_late_CSIF_par/per_pix_dic_008.npy'
-        f = rf'D:\Greening\Result\zscore\LAI3g_MOD_2000_2018\early\MOD.npy'
+        f = rf'D:\Greening\Result\LAI_zscore\early\CABLE-POP_S2_lai.npy'
         # f = rf'D:\Greening\Data\Trendy\DIC\\CABLE-POP_S2_lai\per_pix_dic_014.npy'
         # f='/Volumes/SSD_sumsang/project_greening/Result/new_result/extraction_anomaly_window/1982-2015_during_early/during_early_CO2.npy'
 
@@ -2358,34 +2358,47 @@ class long_term_seasonal_feedbacks_window_anaysis():
         pass
 
     def window_extraction_trend(self):
-        fdir = result_root + rf'LAI_zscore\early_peak\\'
-        outdir = result_root + rf'\\window_analysis_trend\\early_peak\\'
+        fdir_all = result_root + rf'extraction_original_val\\LAI\\'
+        outdir = result_root + rf'\\window_analysis_trend\\late\\'
         T.mk_dir(outdir, force=True)
-        for f in os.listdir(fdir):
-            if not f.endswith('.npy'):
+        for fdir in tqdm(os.listdir(fdir_all)):
+            if not 'MCD' in fdir:
                 continue
-            fpath = join(fdir, f)
-            outf_i = join(outdir, f)
-            dic = T.load_npy(fpath)
-        window = 10
+            for f in os.listdir(fdir_all + fdir):
+                if not 'late' in f:
+                    continue
 
-        new_x_extraction_by_window_trend = {}
-        for pix in tqdm(dic):
+                if not f.endswith('.npy'):
+                    continue
+                fpath = join(fdir_all, fdir, f)
+                outf_i = join(outdir, fdir)
+                if os.path.isfile(outf_i):
+                    continue
+                dic = T.load_npy(fpath)
+                window = 10
 
-            time_series = dic[pix]
-            time_series = np.array(time_series)
+                new_x_extraction_by_window_trend = {}
+                for pix in tqdm(dic):
 
-            time_series[time_series < -999] = np.nan
-            if np.isnan(np.nanmean(time_series)):
-                print('error')
-                continue
-            print(time_series)
+                    time_series = dic[pix]
+                    time_series = np.array(time_series)
+
+                    time_series[time_series < -999] = np.nan
+                    if np.isnan(np.nanmean(time_series)):
+                        print('error')
+                        continue
+                    print((len(time_series)))
+                    ### if all values are identical, then continue
+                    if np.nanmax(time_series) == np.nanmin(time_series):
+                        continue
+                    # if most of values are identical, then continue
+                    if np.nanmax(time_series)>3:
+                        continue
+
+                    new_x_extraction_by_window_trend[pix] = self.forward_window_extract_trend(time_series[2:], window)
 
 
-            new_x_extraction_by_window_trend[pix] = self.forward_window_extract_trend(time_series, window)
-
-
-        np.save(outf_i, new_x_extraction_by_window_trend)
+                np.save(outf_i, new_x_extraction_by_window_trend)
 
     pass
 
@@ -2429,6 +2442,7 @@ class long_term_seasonal_feedbacks_window_anaysis():
                 #     anomaly.append(x_anomaly)
                 new_x_extraction_by_window.append(x_vals)
 
+
         return new_x_extraction_by_window
 
     def forward_window_extract_trend(self, x, window): # extract 后在计算trend
@@ -2467,11 +2481,12 @@ class long_term_seasonal_feedbacks_window_anaysis():
                 x_vals=np.array(x_vals)
                 x_vals[x_vals < -999] = np.nan
                 # r,p=stats.pearsonr(x_vals,range(len(x_vals)))
-                r1,p1=np.polyfit(x_vals,range(len(x_vals)),1)
+                # r1,p1=np.polyfit(x_vals,range(len(x_vals)),1)
                 a,b,r,p,q,=stats.linregress(x_vals,range(len(x_vals)))
-                print(r1,a)
+                # print(r1,a)
                 # exit()
-                new_x_trend_by_window.append(r)
+                new_x_trend_by_window.append(a)
+        print(len(new_x_trend_by_window))
 
 
         return new_x_trend_by_window
@@ -3737,6 +3752,92 @@ class anaysize_fluxnet():
 
         pass
 
+class ResponseFunction:  # figure 5 in paper
+    def __init__(self):
+
+        # This class is used to calculate the structural equation model
+        self.this_class_arr = result_root + '\Dataframe\detrend_zscore_monthly\\'
+        self.dff = self.this_class_arr + 'detrend_zscore_monthly.df'
+        self.outdir = result_root + 'response_function/'
+        T.mkdir(self.outdir, force=True)
+        pass
+
+    def run(self):
+        # self.build_df()
+        df, dff = self.__load_df()
+
+        df_clean = self.clean_df(df)
+
+        self.plot_response_func(df_clean)
+        pass
+    def __load_df(self):
+        dff = self.dff
+        df = T.load_df(dff)
+
+        return df, dff
+        # return df_early,dff
+    def clean_df(self,df):
+        df = df[df['row'] < 120]
+        df = df[df['HI_class'] == 'Humid']
+        # df = df[df['HI_class'] == 'Dryland']
+        df = df[df['max_trend'] < 10]
+        # df=df[df['early_peak_MCD']>0]
+        # df = df[df['detrend_late_MODIS_LAI_zscore'] > 0]
+
+        df = df[df['landcover_GLC'] != 'Crop']
+
+        return df
+
+    def plot_response_func(self,df):
+        T.print_head_n(df, 10)
+
+        regions = ['Humid', 'Dryland']
+        cm = 1 / 2.54
+
+        for region in regions:
+            plt.figure(figsize=(15 * cm, 7 * cm))
+
+            df_temp = df[df['HI_class'] == region]
+            x_var='peak_SMroot'
+            y_var='late_Temp'
+            z_var='late_MCD'
+            # threshold_SM_list_reverse = threshold_SM[::-1]
+            # threshold_Temp_list_reverse = threshold_temp[::-1]
+
+            # threshold_SM_list_str = [f'{i:.5f}' for i in threshold_SM_list_reverse]
+            # threshold_Temp_list_str = [f'{i:.5f}' for i in threshold_Temp_list_reverse]
+
+            x_bins = np.arange(-2, 2, 0.5)
+            y_bins = np.arange(-2, 2, 0.5)
+            for i in range(len(x_bins)):
+                if i >= len(x_bins) - 1:
+                    break
+                x_min = x_bins[i]
+                x_max = x_bins[i + 1]
+                df_temp_x = df_temp[df_temp[x_var] >= x_min]
+                df_temp_x = df_temp_x[df_temp_x[x_var] < x_max]
+                for j in range(len(y_bins)):
+                    if j >= len(y_bins) - 1:
+                        break
+                    y_min = y_bins[j]
+                    y_max = y_bins[j + 1]
+                    df_temp_y = df_temp_x[df_temp_x[y_var] >= y_min]
+                    df_temp_y = df_temp_y[df_temp_y[y_var] < y_max]
+                    z_list = df_temp_y[z_var].values.tolist()
+                    x_list = df_temp_y[x_var].values.tolist()
+                    y_list = df_temp_y[y_var].values.tolist()
+                    ax=sns.heatmap(z_list, annot=True, linewidths=0.75)
+
+                    # ax = sns.heatmap(, annot=label_matrix, linewidths=0.75,
+                    #                  yticklabels=threshold_early_list_str,
+                    #                  xticklabels=threshold_late_list_str, cmap='RdBu', vmin=-15, vmax=15,
+                    #                  cbar_kws={'label': 'Frenquency (%)', 'ticks': [-15, -10, -5, 0, 5, 10, 15]},
+                    #                  fmt='.1f')
+
+
+
+
+
 
 
 def main():
@@ -3749,10 +3850,11 @@ def main():
     # statistic_analysis().run()
     # frequency_analysis().run()
     # trends_seasonal_feedback().run()
-    long_term_seasonal_feedbacks_window_anaysis().run()
+    # long_term_seasonal_feedbacks_window_anaysis().run()
     # build_dataframe().run()
     # SEM_wen().run()
     # anaysize_fluxnet().run()
+    ResponseFunction().run()
 
 
 
