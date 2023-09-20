@@ -2354,17 +2354,21 @@ class trends_seasonal_feedback():
 class long_term_seasonal_feedbacks_window_anaysis():
     def run(self):
         self.window_extraction_trend()
+        # self.trend_window_trend()
+        # self.bivariate_trend()
+
         pass
 
     def window_extraction_trend(self):
+        period= 'early_peak'
         fdir_all = result_root + rf'extraction_original_val\\LAI\\'
-        outdir = result_root + rf'\\window_analysis_trend\\late\\'
+        outdir = result_root + rf'\\window_analysis_trend\\{period}\\'
         T.mk_dir(outdir, force=True)
         for fdir in tqdm(os.listdir(fdir_all)):
             if not 'MCD' in fdir:
                 continue
             for f in os.listdir(fdir_all + fdir):
-                if not 'late' in f:
+                if not f'{period}' in f:
                     continue
 
                 if not f.endswith('.npy'):
@@ -2390,16 +2394,54 @@ class long_term_seasonal_feedbacks_window_anaysis():
                     ### if all values are identical, then continue
                     if np.nanmax(time_series) == np.nanmin(time_series):
                         continue
-                    # if most of values are identical, then continue
-                    if np.nanmax(time_series)>3:
-                        continue
 
-                    new_x_extraction_by_window_trend[pix] = self.forward_window_extract_trend(time_series[2:], window)
+
+                    new_x_extraction_by_window_trend[pix] = self.forward_window_extract_trend(time_series, window)
 
 
                 np.save(outf_i, new_x_extraction_by_window_trend)
 
+    def trend_window_trend(self):
+        fdir=result_root+rf'\window_analysis_trend\early_peak\\'
+        outdir=result_root+rf'\window_analysis_trend_trend\early_peak\\'
+        T.mk_dir(outdir,force=1)
+        for f in tqdm(os.listdir(fdir)):
+            if not f.endswith('.npy'):
+                continue
+            fpath=join(fdir,f)
+            outf=join(outdir,f)
+            dic=T.load_npy(fpath)
+            new_dic={}
+            for pix in dic:
+                vals=dic[pix]
+                if len(vals)==0:
+                    continue
+                if np.nanmax(vals)==np.nanmin(vals):
+                    continue
+
+                a,b,r,p,q=stats.linregress(vals,range(len(vals)))
+                new_dic[pix]=a
+            np.save(outf,new_dic)
+            array = DIC_and_TIF().pix_dic_to_spatial_arr(new_dic)
+            DIC_and_TIF().arr_to_tif(array, outf.replace('.npy', '.tif'))
+
     pass
+
+    def bivariate_trend(self):
+        import bivariate_package
+        tif1 = 'D:\Greening\Result\window_analysis_trend_trend\early_peak/Trendy_ensemble.tif'
+        tif2 = 'D:\Greening\Result\window_analysis_trend_trend\late/Trendy_ensemble.tif'
+        outdir=result_root+rf'\window_analysis_trend_trend\bivariate_result\\'
+        T.mk_dir(outdir,force=1)
+
+        outf = join(outdir, 'Trendy_ensemble.tif')
+        x_label = 'early_peak_trend'
+        y_label = 'late_trend'
+        min1 = -0.3
+        max1 = 0.3
+        min2 = -0.3
+        max2 = 0.3
+        bivariate_package.Bivariate_plot().plot_bivariate_map(tif1, tif2, x_label, y_label, min1, max1, min2, max2, outf,n=(5,5))
 
     def forward_window_extract_anomaly(self, x, window):
         # 前窗滤波
@@ -2481,7 +2523,10 @@ class long_term_seasonal_feedbacks_window_anaysis():
                 x_vals[x_vals < -999] = np.nan
                 # r,p=stats.pearsonr(x_vals,range(len(x_vals)))
                 # r1,p1=np.polyfit(x_vals,range(len(x_vals)),1)
-                a,b,r,p,q,=stats.linregress(x_vals,range(len(x_vals)))
+                try:
+                    a,b,r,p,q,=stats.linregress(x_vals,range(len(x_vals)))
+                except:
+                    a=np.nan
                 # print(r1,a)
                 # exit()
                 new_x_trend_by_window.append(a)
@@ -3853,11 +3898,11 @@ def main():
     # statistic_analysis().run()
     # frequency_analysis().run()
     # trends_seasonal_feedback().run()
-    # long_term_seasonal_feedbacks_window_anaysis().run()
+    long_term_seasonal_feedbacks_window_anaysis().run()
     # build_dataframe().run()
     # SEM_wen().run()
     # anaysize_fluxnet().run()
-    ResponseFunction().run()
+    # ResponseFunction().run()
 
 
 
