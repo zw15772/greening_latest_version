@@ -19,13 +19,13 @@ class Bivariate_plot:
 
     def gen_zcmap(self, n):
         # corner_colors = ("#0058B7", '#FFFFFF', "#8F00FF", "#FF0000")
-        # corner_colors = ("#1D2D69", '#A1FF64', "#E9FF64", "#BD2ECC")
+        corner_colors = ("#1D2D69", '#A1FF64', "#E9FF64", "#BD2ECC")
         # corner_colors = ("#DC9EC5", '#788AA9', "#F3F3F3", "#8CCBA4")
         # corner_colors = ("#FF0000", '#000000', "#FFFFFF", "#0058B7")
-        # zcmap = xycmap.custom_xycmap(corner_colors=corner_colors, n=n)
-        xcmap = sns.diverging_palette(180, 360,s=100,l=75, as_cmap=True)
-        ycmap = sns.diverging_palette(90, 270,s=100,l=75, as_cmap=True)
-        zcmap = xycmap.mean_xycmap(xcmap=xcmap, ycmap=ycmap, n=n)
+        zcmap = xycmap.custom_xycmap(corner_colors=corner_colors, n=n)
+        # xcmap = sns.diverging_palette(180, 360,s=100,l=75, as_cmap=True)
+        # ycmap = sns.diverging_palette(90, 270,s=100,l=75, as_cmap=True)
+        # zcmap = xycmap.mean_xycmap(xcmap=xcmap, ycmap=ycmap, n=n)
         # plt.imshow(zcmap)
         # plt.show()
         # plt.close()
@@ -125,10 +125,11 @@ class Bivariate_plot:
         x_ticks = [round(x, 2) for x in x_ticks]
         y_ticks = [round(y, 2) for y in y_ticks]
         # x_ticks = x_ticks[::-1]
-        # y_ticks = y_ticks[::-1]
+        y_ticks = y_ticks[::-1]
         zcmap_255 = zcmap * 255
         zcmap_255 = zcmap_255.astype('uint8')
         zcmap = zcmap_255
+        zcmap = zcmap[::-1]
         plt.imshow(zcmap)
 
         plt.xticks(list(range(len(x_ticks)))[::10], x_ticks[::10], rotation=90)

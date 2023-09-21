@@ -2252,9 +2252,12 @@ class trends_seasonal_feedback():
         self.product_list = ['CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
                         'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai', 'JULES_S2_lai',
                         'LPJ-GUESS_S2_lai', 'LPX-Bern_S2_lai', 'SDGVM_S2_lai',
-                        'ORCHIDEE_S2_lai', 'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', 'Trendy_ensemble', 'MCD','MOD','LAI3g']
+                        'ORCHIDEE_S2_lai', 'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', 'Trendy_ensemble', 'MCD','MOD','LAI3g', 'Trendy_ensemble2',]
+
+        self.product_list = ['Trendy_ensemble', 'MCD','Trendy_ensemble2',]
     def run(self):
-        self.calculate_long_trends_seasonal_feedback()
+        # self.calculate_long_trends_seasonal_feedback()
+        self.calculate_long_trends_seasonal_feedback_modeling()
         # self.plot_statistic_long_trends_seasonal_feedback_from_tif()
 
     def calculate_long_trends_seasonal_feedback(self):
@@ -2293,6 +2296,40 @@ class trends_seasonal_feedback():
             outf = join(outdir, f'{model}.tif')
             DIC_and_TIF().arr_to_tif(arr, outf)
 
+    def calculate_long_trends_seasonal_feedback_modeling(self):
+        fdir_early_peak=result_root+rf'\\trend_anaysis\early_peak\\\\'
+        fdir_late = result_root + rf'\\trend_anaysis\late\\\\'
+        outdir=result_root+r'\\long_trends_seasonal_feedback\\Modeling\\'
+        T.mk_dir(outdir,force=True)
+        class_label_dict = {'stablilizing': -1, 'weak amplifying': 0, 'amplifying': 1, 'other': -2, }
+        for model in tqdm(self.product_list):
+
+            early_peak_f = join(fdir_early_peak, f'{model}_trend.tif')
+            late_f = join(fdir_late, f'{model}_trend.tif')
+            early_peak_dict = DIC_and_TIF().spatial_tif_to_dic(early_peak_f)
+            late_dict = DIC_and_TIF().spatial_tif_to_dic(late_f)
+            class_dict = {}
+            class_dict_num = {}
+            for pix in early_peak_dict:
+                early_peak = early_peak_dict[pix]
+                late = late_dict[pix]
+                if np.isnan(early_peak):
+                    continue
+                if not early_peak > 0:
+                    class_i = 'other'
+                else:
+                    if late <= 0:
+                        class_i = 'stablilizing'
+                    else:
+                        if early_peak >= late:
+                            class_i = 'weak amplifying'
+                        else:
+                            class_i = 'amplifying'
+                class_dict[pix] = class_i
+                class_dict_num[pix] = class_label_dict[class_i]
+            arr = DIC_and_TIF().pix_dic_to_spatial_arr(class_dict_num)
+            outf = join(outdir, f'{model}.tif')
+            DIC_and_TIF().arr_to_tif(arr, outf)
 
     def plot_statistic_long_trends_seasonal_feedback_from_tif(self):
         fdir = rf'D:\Greening\Result\long_trends_seasonal_feedback\\'
@@ -2353,23 +2390,66 @@ class trends_seasonal_feedback():
 
 class long_term_seasonal_feedbacks_window_anaysis():
     def run(self):
-        self.window_extraction_trend()
-        # self.trend_window_trend()
+        # self.trend_anaysis()
+        # self.window_extraction_trend()
+        self.trend_window_trend()
         # self.bivariate_trend()
 
         pass
+    def trend_anaysis(self):
+        period = 'early_peak'
+        fdir_all = result_root + rf'extraction_original_val\\LAI\\'
+        outdir = result_root + rf'\\trend_anaysis\\{period}\\'
+        T.mk_dir(outdir, force=True)
+        for fdir in tqdm(os.listdir(fdir_all)):
+            if not 'Trendy_ensemble' in fdir:
+                continue
 
+            for f in os.listdir(fdir_all + fdir):
+                if not f'during_{period}_{fdir}' in f:
+                    continue
+
+                if not f.endswith('.npy'):
+                    continue
+                fpath = join(fdir_all, fdir, f)
+                outf_i = join(outdir, fdir)
+                if os.path.isfile(outf_i):
+                    continue
+                dic = T.load_npy(fpath)
+                trend_dic= {}
+                for pix in dic:
+                    time_series = dic[pix]
+                    # print(time_series)
+                    time_series = np.array(time_series)
+                    time_series[time_series < -999] = np.nan
+                    if np.isnan(np.nanmean(time_series)):
+                        continue
+                    if np.nanmean(time_series) <= 0.:
+                        continue
+                    try:
+                        a,b,r,p=T.nan_line_fit(range(len(time_series)),time_series)
+                        trend_dic[pix] = a
+                        # print(a)
+                    except:
+                        trend_dic[pix] = np.nan
+                np.save(outf_i, trend_dic)
+                array = DIC_and_TIF().pix_dic_to_spatial_arr(trend_dic)
+                DIC_and_TIF().arr_to_tif(array, outf_i + '_trend.tif')
+
+        pass
     def window_extraction_trend(self):
-        period= 'early_peak'
+        period= 'late'
         fdir_all = result_root + rf'extraction_original_val\\LAI\\'
         outdir = result_root + rf'\\window_analysis_trend\\{period}\\'
         T.mk_dir(outdir, force=True)
         for fdir in tqdm(os.listdir(fdir_all)):
             if not 'MCD' in fdir:
                 continue
+
             for f in os.listdir(fdir_all + fdir):
-                if not f'{period}' in f:
+                if not f'during_{period}_{fdir}' in f:
                     continue
+
 
                 if not f.endswith('.npy'):
                     continue
@@ -2419,7 +2499,7 @@ class long_term_seasonal_feedbacks_window_anaysis():
                 if np.nanmax(vals)==np.nanmin(vals):
                     continue
 
-                a,b,r,p,q=stats.linregress(vals,range(len(vals)))
+                a,b,r,p,q=stats.linregress(range(len(vals)),vals)
                 new_dic[pix]=a
             np.save(outf,new_dic)
             array = DIC_and_TIF().pix_dic_to_spatial_arr(new_dic)
@@ -2429,19 +2509,19 @@ class long_term_seasonal_feedbacks_window_anaysis():
 
     def bivariate_trend(self):
         import bivariate_package
-        tif1 = 'D:\Greening\Result\window_analysis_trend_trend\early_peak/Trendy_ensemble.tif'
-        tif2 = 'D:\Greening\Result\window_analysis_trend_trend\late/Trendy_ensemble.tif'
-        outdir=result_root+rf'\window_analysis_trend_trend\bivariate_result\\'
+        tif1 = rf'D:\Greening\Result\trend_anaysis\early_peak\Trendy_ensemble_trend.tif'
+        tif2 = rf'D:\Greening\Result\trend_anaysis\late/Trendy_ensemble_trend.tif'
+        outdir=result_root+rf'\trend_anaysis\bivariate_result\\'
         T.mk_dir(outdir,force=1)
 
         outf = join(outdir, 'Trendy_ensemble.tif')
         x_label = 'early_peak_trend'
         y_label = 'late_trend'
-        min1 = -0.3
-        max1 = 0.3
-        min2 = -0.3
-        max2 = 0.3
-        bivariate_package.Bivariate_plot().plot_bivariate_map(tif1, tif2, x_label, y_label, min1, max1, min2, max2, outf,n=(5,5))
+        min1 = -0.03
+        max1 = 0.03
+        min2 = -0.03
+        max2 = 0.03
+        bivariate_package.Bivariate_plot().plot_bivariate_map(tif1, tif2, x_label, y_label, min1, max1, min2, max2, outf,n=(3,3))
 
     def forward_window_extract_anomaly(self, x, window):
         # 前窗滤波
@@ -2524,7 +2604,7 @@ class long_term_seasonal_feedbacks_window_anaysis():
                 # r,p=stats.pearsonr(x_vals,range(len(x_vals)))
                 # r1,p1=np.polyfit(x_vals,range(len(x_vals)),1)
                 try:
-                    a,b,r,p,q,=stats.linregress(x_vals,range(len(x_vals)))
+                    a,b,r,p,q,=stats.linregress(range(len(x_vals)),x_vals)
                 except:
                     a=np.nan
                 # print(r1,a)
@@ -2847,7 +2927,327 @@ class build_dataframe():
                 # label = 2
             dic_reclass[pix] = label
         return dic_reclass
+class plot dataframe():
+    def __init__(self):
 
+        self.this_class_arr = result_root + 'Data_frame\dataframe_window_anaysis\\'
+
+        Tools().mk_dir(self.this_class_arr, force=True)
+        self.dff = self.this_class_arr + 'Dataframe_window_anaysis.df'
+        self.P_PET_fdir = rf'C:\Users\pcadmin\Desktop\Data\Base_data\aridity_P_PET_dic\\'
+        pass
+    pass
+class build_dataframe_window_anaysis():
+    def __init__(self):
+
+        self.this_class_arr = result_root + 'Data_frame\dataframe_window_anaysis\\'
+
+        Tools().mk_dir(self.this_class_arr, force=True)
+        self.dff = self.this_class_arr + 'Dataframe_window_anaysis.df'
+        self.P_PET_fdir = rf'C:\Users\pcadmin\Desktop\Data\Base_data\aridity_P_PET_dic\\'
+        pass
+
+
+
+    def __init__(self):
+
+        self.this_class_arr = result_root + 'Data_frame\detrend_zscore_monthly\\'
+
+        Tools().mk_dir(self.this_class_arr, force=True)
+        self.dff = self.this_class_arr + 'detrend_zscore_monthly.df'
+        self.P_PET_fdir = rf'C:\Users\pcadmin\Desktop\Data\Base_data\aridity_P_PET_dic\\'
+        pass
+
+    def run(self):
+
+        df = self.__gen_df_init(self.dff)
+        # df=self.foo1(df)
+        df=self.add_detrend_zscore_to_df(df)
+
+        df = self.add_row(df)
+        #
+        df = self.add_max_trend_to_df(df)
+
+        df = self.add_NDVI_mask(df)
+
+        df = self.add_GLC_landcover_data_to_df(df)
+
+        P_PET_dic = self.P_PET_ratio(self.P_PET_fdir)
+        P_PET_reclass_dic = self.P_PET_reclass_2(P_PET_dic)
+        df = T.add_spatial_dic_to_df(df, P_PET_reclass_dic, 'HI_class')
+
+        # df=self.__rename_dataframe_columns(df)
+        # df=self.show_field(df)
+        # df = self.drop_field_df(df)
+
+        T.save_df(df, self.dff)
+        self.__df_to_excel(df, self.dff)
+
+    def __gen_df_init(self, file):
+        df = pd.DataFrame()
+        if not os.path.isfile(file):
+            T.save_df(df, file)
+            return df
+        else:
+            df = self.__load_df(file)
+            return df
+            # raise Warning('{} is already existed'.format(self.dff))
+
+    def __load_df(self, file):
+        df = T.load_df(file)
+        return df
+        # return df_early,dff
+
+    def __df_to_excel(self, df, dff, n=1000, random=False):
+        dff = dff.split('.')[0]
+        if n == None:
+            df.to_excel('{}.xlsx'.format(dff))
+        else:
+            if random:
+                df = df.sample(n=n, random_state=1)
+                df.to_excel('{}.xlsx'.format(dff))
+            else:
+                df = df.head(n)
+                df.to_excel('{}.xlsx'.format(dff))
+
+        pass
+
+    def foo1(self, df):
+
+        f = result_root + rf'detrend_zscore\climate_monthly\early_peak\MCD.npy'
+        dic = {}
+        outf = self.dff
+        result_dic = {}
+        dic = T.load_npy(f)
+
+        pix_list = []
+        change_rate_list = []
+        year = []
+        f_name = f.split('\\')[-2]+'_'+f.split('\\')[-1].split('.')[0]
+        print(f_name)
+
+        for pix in tqdm(dic):
+            time_series = dic[pix]
+
+            y = 2002
+            for val in time_series:
+                pix_list.append(pix)
+                change_rate_list.append(val)
+                year.append(y + 1)
+                y = y + 1
+        df['pix'] = pix_list
+        df[f_name] = change_rate_list
+        df['year'] = year
+        # T.save_df(df, outf)
+        # df = df.head(1000)
+        # df.to_excel(outf+'.xlsx')
+        return df
+
+    def foo2(self, df):  # 新建trend
+
+        f = 'zscore\daily_Y\peak/during_peak_LAI3g_zscore.npy'
+        val_array = np.load(f)
+        val_dic = DIC_and_TIF().spatial_arr_to_dic(val_array)
+
+        # exit()
+
+        pix_list = []
+        for pix in tqdm(val_dic):
+            pix_list.append(pix)
+        df['pix'] = pix_list
+
+        return df
+
+    def add_detrend_zscore_to_df(self,df):
+        period_list = ['early', 'peak', 'late','early_peak']
+        for period in period_list:
+
+            fdir=result_root + rf'detrend_zscore\climate_monthly\{period}\\'
+
+            for f in os.listdir(fdir):
+                if not f.endswith('npy'):
+                    continue
+
+                NDVI_dic = T.load_npy(fdir+f)
+                f_name = fdir.split('\\')[-3]+'_'+f.split('\\')[-1].split('.')[0]
+                print(f_name)
+                NDVI_list = []
+                for i, row in tqdm(df.iterrows(), total=len(df)):
+                    year = row['year']
+                    # pix = row.pix
+                    pix = row['pix']
+                    if not pix in NDVI_dic:
+                        NDVI_list.append(np.nan)
+                        continue
+
+                    vals = NDVI_dic[pix]
+                    if len(vals) != 20:
+                        NDVI_list.append(np.nan)
+                        continue
+                    v1 = vals[year - 2003]
+                    NDVI_list.append(v1)
+                df[f_name] = NDVI_list
+        return df
+
+    def add_row(self,df):
+        r_list=[]
+        for i, row in tqdm(df.iterrows(), total=len(df)):
+            pix = row['pix']
+            r,c=pix
+            r_list.append(r)
+        df['row'] = r_list
+        return df
+
+    def add_max_trend_to_df(self, df):
+
+        # fdir = results_root + '/lc_trend/'
+        fdir = r'C:/Users/pcadmin/Desktop/Data/Base_data/lc_trend/'
+        for f in (os.listdir(fdir)):
+            # print()
+            if not 'max_trend' in f:
+                continue
+            if not f.endswith('.npy'):
+                continue
+            if 'p_value' in f:
+                continue
+
+            val_array = np.load(fdir + f)
+            val_dic = DIC_and_TIF().spatial_arr_to_dic(val_array)
+            f_name = f.split('.')[0]
+            print(f_name)
+            # exit()
+            val_list = []
+            for i, row in tqdm(df.iterrows(), total=len(df)):
+
+                pix = row['pix']
+                if not pix in val_dic:
+                    val_list.append(np.nan)
+                    continue
+                val = val_dic[pix]
+                val = val * 20
+                if val < -99:
+                    val_list.append(np.nan)
+                    continue
+                val_list.append(val)
+            df[f_name] = val_list
+
+        return df
+    def add_NDVI_mask(self,df):
+        f =rf'C:/Users/pcadmin/Desktop/Data/Base_data/NDVI_mask.tif'
+        # f=data_root+'NDVI_mask.tif'
+
+        array, originX, originY, pixelWidth, pixelHeight = to_raster.raster2array(f)
+        array = np.array(array, dtype=np.float)
+        val_dic = DIC_and_TIF().spatial_arr_to_dic(array)
+        f_name = 'NDVI_MASK'
+        print(f_name)
+        # exit()
+        val_list = []
+        for i, row in tqdm(df.iterrows(), total=len(df)):
+
+            pix = row['pix']
+            if not pix in val_dic:
+                val_list.append(np.nan)
+                continue
+            vals = val_dic[pix]
+            if vals < -99:
+                val_list.append(np.nan)
+                continue
+            val_list.append(vals)
+        df[f_name] = val_list
+        return df
+    def add_GLC_landcover_data_to_df(self, df):
+
+
+        f = rf'C:\Users\pcadmin\Desktop\Data\Base_data\LC_reclass2.npy'
+
+        val_dic=T.load_npy(f)
+
+        f_name = f.split('.')[0]
+        print(f_name)
+
+        val_list = []
+        for i, row in tqdm(df.iterrows(), total=len(df)):
+
+            pix = row['pix']
+            if not pix in val_dic:
+                val_list.append(np.nan)
+                continue
+            vals = val_dic[pix]
+            val_list.append(vals)
+
+        df['landcover_GLC'] = val_list
+        return df
+
+    def P_PET_ratio(self, P_PET_fdir):
+
+        fdir = P_PET_fdir
+        dic = T.load_npy_dir(fdir)
+        dic_long_term = {}
+        for pix in dic:
+            vals = dic[pix]
+            vals = np.array(vals)
+            vals = T.mask_999999_arr(vals, warning=False)
+            vals[vals == 0] = np.nan
+            if T.is_all_nan(vals):
+                continue
+            vals = self.drop_n_std(vals)
+            long_term_vals = np.nanmean(vals)
+            dic_long_term[pix] = long_term_vals
+        return dic_long_term
+
+    def drop_n_std(self, vals, n=1):
+        vals = np.array(vals)
+        mean = np.nanmean(vals)
+        std = np.nanstd(vals)
+        up = mean + n * std
+        down = mean - n * std
+        vals[vals > up] = np.nan
+        vals[vals < down] = np.nan
+        return vals
+
+    def P_PET_reclass(self,dic):
+        dic_reclass = {}
+        for pix in dic:
+            val = dic[pix]
+            label = None
+            # label = np.nan
+            if val > 0.65:
+                label = 'Humid'
+                # label = 3
+            elif val < 0.2:
+                label = 'Arid'
+                # label = 0
+            elif val > 0.2 and val < 0.5:
+                label = 'Semi Arid'
+                # label = 1
+            elif val > 0.5 and val < 0.65:
+                label = 'Semi Humid'
+                # label = 2
+            dic_reclass[pix] = label
+        return dic_reclass
+
+
+    def P_PET_reclass_2(self,dic):
+        dic_reclass = {}
+        for pix in dic:
+            val = dic[pix]
+            label = None
+            # label = np.nan
+            if val > 0.65:
+                label = 'Humid'
+                # label = 3
+            elif val < 0.2:
+                label = 'Dryland'
+                # label = 0
+            elif val > 0.2 and val < 0.5:
+                label = 'Dryland'
+                # label = 1
+            elif val > 0.5 and val < 0.65:
+                label = 'Dryland'
+                # label = 2
+            dic_reclass[pix] = label
+        return dic_reclass
 class SEM_wen:
     def __init__(self):
 
@@ -3825,8 +4225,8 @@ class ResponseFunction:  # figure 5 in paper
         # df = df[df['HI_class'] == 'Humid']
         # df = df[df['HI_class'] == 'Dryland']
         df = df[df['max_trend'] < 10]
-        # df=df[df['early_peak_MCD']>0]
-        # df = df[df['detrend_late_MODIS_LAI_zscore'] > 0]
+        df=df[df['early_peak_MCD']>0]
+        # df = df[df['late_MCD'] < 0]
 
         df = df[df['landcover_GLC'] != 'Crop']
 
@@ -3849,7 +4249,7 @@ class ResponseFunction:  # figure 5 in paper
 
                 df_temp = df[df['HI_class'] == region]
                 x_var='peak_SMroot'
-                y_var='late_Temp'
+                y_var='peak_Temp'
                 z_var=f'late_{z_val_name}'
 
                 x_bins = np.arange(-1.5, 1.6, 0.5)
@@ -3897,8 +4297,8 @@ def main():
     # process_LAI().run()
     # statistic_analysis().run()
     # frequency_analysis().run()
-    # trends_seasonal_feedback().run()
-    long_term_seasonal_feedbacks_window_anaysis().run()
+    trends_seasonal_feedback().run()
+    # long_term_seasonal_feedbacks_window_anaysis().run()
     # build_dataframe().run()
     # SEM_wen().run()
     # anaysize_fluxnet().run()
