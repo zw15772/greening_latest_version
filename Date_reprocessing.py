@@ -2927,15 +2927,180 @@ class build_dataframe():
                 # label = 2
             dic_reclass[pix] = label
         return dic_reclass
-class plot dataframe():
+class plot_dataframe():
+
     def __init__(self):
 
-        self.this_class_arr = result_root + 'Data_frame\dataframe_window_anaysis\\'
+        self.this_class_arr = result_root + '\zscore_monthly\\'
 
         Tools().mk_dir(self.this_class_arr, force=True)
-        self.dff = self.this_class_arr + 'Dataframe_window_anaysis.df'
-        self.P_PET_fdir = rf'C:\Users\pcadmin\Desktop\Data\Base_data\aridity_P_PET_dic\\'
+        self.dff = self.this_class_arr + 'zscore_monthly.df'
+
+    def run(self):
+        df = self.__gen_df_init(self.dff)
+
+
+        self.call_plot_LAIzscore(df)
+
         pass
+    def __gen_df_init(self, file):
+        df = pd.DataFrame()
+        if not os.path.isfile(file):
+            T.save_df(df, file)
+            return df
+        else:
+            df = self.__load_df(file)
+            return df
+            # raise Warning('{} is already existed'.format(self.dff))
+
+    def __load_df(self, file):
+        df = T.load_df(file)
+        return df
+        # return df_early,dff
+
+    def __df_to_excel(self, df, dff, n=1000, random=False):
+        dff = dff.split('.')[0]
+        if n == None:
+            df.to_excel('{}.xlsx'.format(dff))
+        else:
+            if random:
+                df = df.sample(n=n, random_state=1)
+                df.to_excel('{}.xlsx'.format(dff))
+            else:
+                df = df.head(n)
+                df.to_excel('{}.xlsx'.format(dff))
+
+        pass
+
+
+    def call_plot_LAIzscore(self,df): # 实现变量的三个季节画在一起
+
+        df = df[df['row'] < 120]
+
+        df = df[df['max_trend'] < 10]
+
+        df = df[df['landcover_GLC'] != 'Crop']
+        period_name=['early_peak','late']
+        product_list=['MCD','Trendy_ensemble','CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
+                          'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai', 'JULES_S2_lai',
+                          'LPJ-GUESS_S2_lai', 'LPX-Bern_S2_lai', 'SDGVM_S2_lai',
+                          'ORCHIDEE_S2_lai', 'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
+
+
+
+        color_list=['green','black']
+        color_list.extend('silver' for i in range(len(product_list)-2))
+        linewidth_list=[2,2,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5]
+
+        fig = plt.figure()
+        i = 1
+        for region in ['Humid','Dryland']:
+
+            for period in period_name:
+                ax = fig.add_subplot(2, 2, i)
+                df_pick=df[df['HI_class']==region]
+                flag = 0
+                for variable in product_list:
+
+                    column_name=f'{period}_{variable}'
+
+                    print(column_name)
+                    color=color_list[flag]
+                    linewidth=linewidth_list[flag]
+                    self.plot_zscore(df_pick,column_name,color)
+                    flag+=1
+
+                # plt.legend()
+                plt.ylabel('zscore')
+                plt.xlabel('year')
+                major_xticks = np.arange(0, 20, 5)
+                plt.title(f'{region}')
+                # major_yticks = np.arange(-10, 15, 5)
+                major_yticks = np.arange(-2, 2, 0.4)
+                # major_ticks = np.arange(0, 40, 5)  ### 根据数据长度修改这里
+                ax.set_xticks(major_xticks)
+                ax.set_yticks(major_yticks)
+                plt.grid(which='major', alpha=0.5)
+                i = i + 1
+        plt.show()
+    def plot_zscore(self,df,column_name,color):
+
+        dic = {}
+        mean_val = {}
+        confidence_value = {}
+        std_val = {}
+
+
+        year_list = []
+        for i in range(2003, 2022):
+            year_list.append(i)
+        print(year_list)
+
+        for year in tqdm(year_list):  # 构造字典的键值，并且字典的键：值初始化
+            dic[year] = []
+            mean_val[year] = []
+            confidence_value[year] = []
+
+        for year in year_list:
+            df_pick = df[df['year'] == year]
+            for i, row in tqdm(df_pick.iterrows(), total=len(df_pick)):
+                pix = row.pix
+                val = row[column_name]
+                dic[year].append(val)
+            val_list = np.array(dic[year])
+            # val_list[val_list>1000]=np.nan
+
+            n = len(val_list)
+            mean_val_i = np.nanmean(val_list)
+            std_val_i=np.nanstd(val_list)
+            se = stats.sem(val_list)
+            h = se * stats.t.ppf((1 + 0.95) / 2., n - 1)
+            confidence_value[year] = h
+            mean_val[year] = mean_val_i
+            std_val[year]=std_val_i
+
+        # a, b, r = KDE_plot().linefit(xaxis, val)
+        mean_val_list=[]    # mean_val_list=下面的mean_value_yearly
+
+        for year in year_list:
+            mean_val_list.append(mean_val[year])
+        xaxis = range(len(mean_val_list))
+        xaxis=list(xaxis)
+        print(len(mean_val_list))
+        # r, p_value = stats.pearsonr(xaxis, mean_val_list)
+        # k_value, b_value = np.polyfit(xaxis, mean_val_list, 1)
+        k_value, b_value, r, p_value=T.nan_line_fit(xaxis,mean_val_list)
+        print(k_value)
+
+        mean_value_yearly = []
+        up_list = []
+        bottom_list = []
+        fit_value_yearly=[]
+        p_value_yearly=[]
+
+
+        for year in year_list:
+            mean_value_yearly.append(mean_val[year])
+            # up_list.append(mean_val[year] + confidence_value[year])
+            # bottom_list.append(mean_val[year] - confidence_value[year])
+            up_list.append(mean_val[year] + 0.125 * std_val[year])
+            bottom_list.append(mean_val[year] - 0.125 * std_val[year])
+
+            fit_value_yearly.append(k_value * (year - year_list[0]) + b_value)
+
+        print(up_list)
+        print(bottom_list)
+
+
+        plt.plot(mean_value_yearly, label=column_name,c=color)
+        # plt.plot(fit_value_yearly,linestyle='--',label='k={:0.2f},p={:0.4f}'.format(k_value,p_value),c=color)
+        # plt.fill_between(range(len(mean_value_yearly)), up_list, bottom_list, alpha=0.1, zorder=-1,color=color)
+
+
+
+
+
+
     pass
 class build_dataframe_window_anaysis():
     def __init__(self):
@@ -4297,9 +4462,10 @@ def main():
     # process_LAI().run()
     # statistic_analysis().run()
     # frequency_analysis().run()
-    trends_seasonal_feedback().run()
+    # trends_seasonal_feedback().run()
     # long_term_seasonal_feedbacks_window_anaysis().run()
     # build_dataframe().run()
+    plot_dataframe().run()
     # SEM_wen().run()
     # anaysize_fluxnet().run()
     # ResponseFunction().run()
