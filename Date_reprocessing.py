@@ -81,7 +81,7 @@ class nctotif():
     def run (self):
         # self.nctotif_CRU()
         self.nc_to_tif_GLEAM()
-        # self.nc_to_tif_Trendy()
+        self.nc_to_tif_Trendy()
 
 
         # self.per_pixel_annual()
@@ -156,9 +156,6 @@ class nctotif():
         fdir = data_root + 'LAI\\'
 
         for f in os.listdir(fdir):
-            if not f.endswith('OCN_S2_nbp.nc'):
-                continue
-
 
             if f.startswith('.'):
                 continue
@@ -169,7 +166,7 @@ class nctotif():
 
             outdir = data_root+rf'/Trendy_TIFF/{outdir_name}//'
             Tools().mk_dir(outdir, force=True)
-            yearlist = list(range(2000, 2023))
+            yearlist = list(range(2003, 2023))
 
             # # check nc variables
             # print(nc.variables.keys())
