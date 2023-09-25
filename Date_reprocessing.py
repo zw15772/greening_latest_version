@@ -2262,7 +2262,9 @@ class trends_seasonal_feedback():
     def run(self):
         # self.calculate_long_trends_seasonal_feedback()
         # self.calculate_long_trends_seasonal_feedback_modeling()
-        self.plot_statistic_long_trends_seasonal_feedback_from_tif()
+        # self.plot_statistic_long_trends_seasonal_feedback_from_tif()
+        df=self.long_trends_seasonal_feedback_df()
+        self.plot_statistic_long_trends_seasonal_feedback_from_df_SI(df)
 
     def calculate_long_trends_seasonal_feedback(self):
         fdir_early_peak=result_root+rf'\trend_analysis\original\\early_peak\\'
@@ -2341,13 +2343,40 @@ class trends_seasonal_feedback():
             outf = join(outdir, f'{model}.tif')
             DIC_and_TIF().arr_to_tif(arr, outf)
 
+    def long_trends_seasonal_feedback_df(self):  ## create humid and arid dataframe seperately
+        fdir = result_root+rf'long_trends_seasonal_feedback\\LAI\\'
+
+
+        product_list = ['MCD','Trendy_ensemble','CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
+                          'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
+                          'LPX-Bern_S2_lai', 'DLEM_S2_lai',
+                         'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
+
+
+        class_label_dict = {'strong stablilizing': -1, 'weak stablilizing': 0, 'amplifying': 1, 'other': -2, }
+
+        trend_mark_dict_reverse = T.reverse_dic(class_label_dict)
+        all_spatial_dic = {}
+        for product in product_list:
+
+            fpath = join(fdir, f'{product}.tif')
+
+            spatial_dict = DIC_and_TIF().spatial_tif_to_dic(fpath)
+            all_spatial_dic[product] = spatial_dict
+        df= T.spatial_dics_to_df(all_spatial_dic)
+        df=Dataframe_func(df).df
+        T.print_head_n(df)
+        return df
+
+
     def plot_statistic_long_trends_seasonal_feedback_from_tif(self):
         fdir = result_root+rf'long_trends_seasonal_feedback\\LAI\\'
 
 
         product_list = ['MCD','Trendy_ensemble','CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
                           'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
-                           'LPX-Bern_S2_lai', 'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
+                          'LPX-Bern_S2_lai', 'DLEM_S2_lai',
+                         'VISIT_S2_lai', 'YIBs_S2_Monthly_lai',]
 
         color_list = ['#F7B36B', '#F9E29F', ]
         color_list.extend(['lavender'] * 14)
@@ -2359,7 +2388,6 @@ class trends_seasonal_feedback():
         for product in product_list:
 
             fpath = join(fdir, f'{product}.tif')
-
 
             spatial_dict = DIC_and_TIF().spatial_tif_to_dic(fpath)
             dict_i = {}
@@ -2385,17 +2413,255 @@ class trends_seasonal_feedback():
 
         df = pd.DataFrame(result_dict)
 
-        # T.print_head_n(df)
-        # for i, row in df.iterrows():
-        #     trendy_product_ratio = row[trendy_product_list].mean()
-        #     df.loc[i, 'Trendy_average'] = trendy_product_ratio
         T.print_head_n(df)
+        T.save_df(df, result_root + f'\\long_trends_seasonal_feedback\\df\\all.df')
+        T.df_to_excel(df, result_root + f'\\long_trends_seasonal_feedback\\df\\all.xlsx')
 
-        df.plot(kind='bar',stacked=False, color=color_list, edgecolor = 'black',linewidth = 1, legend=True, )
-        plt.xticks(rotation=0)
-        plt.ylabel('Percentage (%)')
-        plt.tight_layout()
-        plt.show()
+
+
+
+    def plot_statistic_long_trends_seasonal_feedback_from_df_SI(self,df):
+
+        product_list = ['MCD','Trendy_ensemble','CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'DLEM_S2_lai', 'IBIS_S2_lai',
+                          'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
+                          'LPX-Bern_S2_lai',
+                         'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
+
+
+        color_list = ['#F7B36B',  ]
+        color_list.extend(['lavender'] * 14)
+
+        class_label_dict = {'strong stablilizing': -1, 'weak stablilizing': 0, 'amplifying': 1, 'other': -2, }
+
+        trend_mark_dict_reverse = T.reverse_dic(class_label_dict)
+        result_dict = {}
+
+        for region in ['Dryland','Humid']:
+            df_region=df[df['HI_class']==region]
+
+            for product in product_list:
+                spatial_dict=T.df_to_spatial_dic(df_region,product)
+                dict_i = {}
+
+                for pix in spatial_dict:
+                    val = spatial_dict[pix]
+                    if np.isnan(val):
+                        continue
+                    val = int(val)
+                    mark_i = trend_mark_dict_reverse[val][0]
+                    mark_i_class = class_label_dict[mark_i]
+                    if not mark_i_class in dict_i:
+                        dict_i[mark_i_class] = []
+                    dict_i[mark_i_class].append(pix)
+                total=0
+                for mark_i_class in dict_i:
+                    total= total + len(dict_i[mark_i_class])
+                result_dict_i={}
+                for mark_i_class in dict_i:
+                    ratio=len(dict_i[mark_i_class])/total
+                    result_dict_i[mark_i_class]=ratio*100
+                result_dict[product]=result_dict_i
+
+            df_new = pd.DataFrame(result_dict)
+
+##############start to plot figure
+
+            T.save_df(df_new, result_root + f'\\long_trends_seasonal_feedback\\df\\{region}.df')
+            T.df_to_excel(df_new, result_root + f'\\long_trends_seasonal_feedback\\df\\{region}.xlsx')
+            # df_new = df_new.T
+            # T.print_head_n(df_new)
+            #
+            # cm = 1 / 2.54
+            #
+            #
+            #
+            #
+            # for column in df_new:
+            #     plt.figure(figsize=(7 * cm, 6 * cm))
+            #
+            #     print(trend_mark_dict_reverse[column][0])
+            #
+            #     df_new[column] = df_new[column].astype(float)
+            #     plt.bar(df_new.index, df_new[column], color=color_list)
+            #     plt.xticks([''])
+            #     plt.ylabel('Percentage (%)')
+            #     plt.yticks([0, 20, 40, ])
+            #     plt.title(f'{trend_mark_dict_reverse[column][0]}_{region}')
+            #     # set MCD as a standard
+            #     plt.axhline(y=df_new.loc['MCD', column], color='k', linestyle='--', linewidth=0.5)
+            #
+            #     plt.tight_layout()
+            #     # plt.show()
+            #     plt.savefig(result_root + f'\\long_trends_seasonal_feedback\\figures\\{region}_{trend_mark_dict_reverse[column][0]}.pdf', dpi=300)
+
+    def plot_statistic_long_trends_seasonal_feedback_from_df_main(self,df):
+
+        product_list = ['MCD','Trendy_ensemble','CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
+                          'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
+                          'LPX-Bern_S2_lai', 'DLEM_S2_lai',
+                         'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
+
+        product_list = ['MCD','Trendy_ensemble','CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
+                          'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
+                          'LPX-Bern_S2_lai', 'DLEM_S2_lai',
+                         'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
+
+
+        color_list = ['#F7B36B', '#F9E29F', ]
+        color_list.extend(['lavender'] * 14)
+
+        class_label_dict = {'strong stablilizing': -1, 'weak stablilizing': 0, 'amplifying': 1, 'other': -2, }
+
+        trend_mark_dict_reverse = T.reverse_dic(class_label_dict)
+        result_dict = {}
+
+        for region in ['Dryland','Humid']:
+            df_region=df[df['HI_class']==region]
+
+            for product in product_list:
+                spatial_dict=T.df_to_spatial_dic(df_region,product)
+                dict_i = {}
+
+                for pix in spatial_dict:
+                    val = spatial_dict[pix]
+                    if np.isnan(val):
+                        continue
+                    val = int(val)
+                    mark_i = trend_mark_dict_reverse[val][0]
+                    mark_i_class = class_label_dict[mark_i]
+                    if not mark_i_class in dict_i:
+                        dict_i[mark_i_class] = []
+                    dict_i[mark_i_class].append(pix)
+                total=0
+                for mark_i_class in dict_i:
+                    total= total + len(dict_i[mark_i_class])
+                result_dict_i={}
+                for mark_i_class in dict_i:
+                    ratio=len(dict_i[mark_i_class])/total
+                    result_dict_i[mark_i_class]=ratio*100
+                result_dict[product]=result_dict_i
+
+            df_new = pd.DataFrame(result_dict)
+            T.save_df(df_new, result_root + f'\\long_trends_seasonal_feedback\\df\\{region}.df')
+            T.df_to_excel(df_new, result_root + f'\\long_trends_seasonal_feedback\\df\\{region}.xlsx')
+
+
+
+            # df_new = df_new.T
+            # T.print_head_n(df_new)
+            # for column in df_new:
+            #     df_new[column] = df_new[column].astype(float)
+            #     plt.bar(df_new.index, df_new[column], color=color_list)
+            #     plt.title(f'{column}')
+            #     plt.xticks(rotation=45, horizontalalignment='right')
+            #
+            #     plt.tight_layout()
+            #     plt.show()
+            #     # plt
+
+
+class Dataframe_func:
+
+    def __init__(self,df,is_clean_df=True):
+        print('add lon lat')
+        df = self.add_lon_lat(df)
+
+        print('add NDVI mask')
+        df = self.add_NDVI_mask(df)
+
+        # if is_clean_df == True:
+        #     df = self.clean_df(df)
+
+        # print('add landcover')
+        # df = self.add_GLC_landcover_data_to_df(df)
+
+        print('add Aridity Index')
+        df = self.add_AI_to_df(df)
+
+
+        print('add AI_reclass')
+        df = self.AI_reclass(df)
+
+
+        self.df = df
+
+    def clean_df(self,df):
+
+        df = df[df['lat']>=30]
+        # df = df[df['landcover_GLC'] != 'Crop']
+        df = df[df['NDVI_MASK'] == 1]
+        # df = df[df['ELI_significance'] == 1]
+        return df
+
+    def add_GLC_landcover_data_to_df(self, df):
+        f = join(data_root,'GLC2000/reclass_lc_dic.npy')
+        val_dic=T.load_npy(f)
+        val_list = []
+        for i, row in tqdm(df.iterrows(), total=len(df)):
+            pix = row['pix']
+            if not pix in val_dic:
+                val_list.append(np.nan)
+                continue
+            vals = val_dic[pix]
+            val_list.append(vals)
+        df['landcover_GLC'] = val_list
+        return df
+
+    def add_NDVI_mask(self,df):
+        # f =rf'C:/Users/pcadmin/Desktop/Data/Base_data/NDVI_mask.tif'
+        f = join(data_root, 'Base_data', 'NDVI_mask.tif')
+        print(f)
+
+        array, originX, originY, pixelWidth, pixelHeight = ToRaster().raster2array(f)
+        array = np.array(array, dtype=float)
+        val_dic = DIC_and_TIF().spatial_arr_to_dic(array)
+        f_name = 'NDVI_MASK'
+        print(f_name)
+        # exit()
+        val_list = []
+        for i, row in tqdm(df.iterrows(), total=len(df)):
+
+            pix = row['pix']
+            if not pix in val_dic:
+                val_list.append(np.nan)
+                continue
+            vals = val_dic[pix]
+            if vals < -99:
+                val_list.append(np.nan)
+                continue
+            val_list.append(vals)
+        df[f_name] = val_list
+        return df
+
+    def add_AI_to_df(self, df):
+        f = join(data_root, 'Base_data/Aridity_Index/aridity_index.tif')
+        spatial_dict = DIC_and_TIF().spatial_tif_to_dic(f)
+        df = T.add_spatial_dic_to_df(df, spatial_dict, 'HI_class')
+        return df
+
+    def add_lon_lat(self,df):
+        df = T.add_lon_lat_to_df(df, DIC_and_TIF())
+        return df
+
+
+    def AI_reclass(self,df):
+        AI_class = []
+        for i,row in df.iterrows():
+            AI = row['HI_class']
+            if AI < 0.65:
+                AI_class.append('Dryland')
+            elif AI >= 0.65:
+                AI_class.append('Humid')
+            elif np.isnan(AI):
+                AI_class.append(np.nan)
+            else:
+                print(AI)
+                raise ValueError('AI error')
+        df['HI_class'] = AI_class
+        return df
+
+
+
 
 class long_term_seasonal_feedbacks_window_anaysis():
     def run(self):
@@ -4482,6 +4748,7 @@ def main():
     # statistic_analysis().run()
     # frequency_analysis().run()
     trends_seasonal_feedback().run()
+
     # long_term_seasonal_feedbacks_window_anaysis().run()
     # build_dataframe().run()
     # plot_dataframe().run()
