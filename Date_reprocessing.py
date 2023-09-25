@@ -2353,7 +2353,8 @@ class trends_seasonal_feedback():
                          'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
 
 
-        class_label_dict = {'strong stablilizing': -1, 'weak stablilizing': 0, 'amplifying': 1, 'other': -2, }
+        # class_label_dict = {'strong stablilizing': -1, 'weak stablilizing': 0, 'amplifying': 1, 'other': -2, }
+        class_label_dict = {'strong stablilizing': -1, 'weak stablilizing': 0, 'amplifying': 1, }
 
         trend_mark_dict_reverse = T.reverse_dic(class_label_dict)
         all_spatial_dic = {}
@@ -2431,7 +2432,8 @@ class trends_seasonal_feedback():
         color_list = ['#F7B36B',  ]
         color_list.extend(['lavender'] * 14)
 
-        class_label_dict = {'strong stablilizing': -1, 'weak stablilizing': 0, 'amplifying': 1, 'other': -2, }
+        # class_label_dict = {'strong stablilizing': -1, 'weak stablilizing': 0, 'amplifying': 1, 'other': -2, }
+        class_label_dict = {'strong stablilizing': -1, 'weak stablilizing': 0, 'amplifying': 1,  }
 
         trend_mark_dict_reverse = T.reverse_dic(class_label_dict)
         result_dict = {}
@@ -2448,6 +2450,8 @@ class trends_seasonal_feedback():
                     if np.isnan(val):
                         continue
                     val = int(val)
+                    if val == -2:
+                        continue
                     mark_i = trend_mark_dict_reverse[val][0]
                     mark_i_class = class_label_dict[mark_i]
                     if not mark_i_class in dict_i:
@@ -2466,33 +2470,33 @@ class trends_seasonal_feedback():
 
 ##############start to plot figure
 
-            T.save_df(df_new, result_root + f'\\long_trends_seasonal_feedback\\df\\{region}.df')
-            T.df_to_excel(df_new, result_root + f'\\long_trends_seasonal_feedback\\df\\{region}.xlsx')
-            # df_new = df_new.T
-            # T.print_head_n(df_new)
-            #
-            # cm = 1 / 2.54
-            #
-            #
-            #
-            #
-            # for column in df_new:
-            #     plt.figure(figsize=(7 * cm, 6 * cm))
-            #
-            #     print(trend_mark_dict_reverse[column][0])
-            #
-            #     df_new[column] = df_new[column].astype(float)
-            #     plt.bar(df_new.index, df_new[column], color=color_list)
-            #     plt.xticks([''])
-            #     plt.ylabel('Percentage (%)')
-            #     plt.yticks([0, 20, 40, ])
-            #     plt.title(f'{trend_mark_dict_reverse[column][0]}_{region}')
-            #     # set MCD as a standard
-            #     plt.axhline(y=df_new.loc['MCD', column], color='k', linestyle='--', linewidth=0.5)
-            #
-            #     plt.tight_layout()
-            #     # plt.show()
-            #     plt.savefig(result_root + f'\\long_trends_seasonal_feedback\\figures\\{region}_{trend_mark_dict_reverse[column][0]}.pdf', dpi=300)
+            # T.save_df(df_new, result_root + f'\\long_trends_seasonal_feedback\\df\\{region}.df')
+            # T.df_to_excel(df_new, result_root + f'\\long_trends_seasonal_feedback\\df\\{region}.xlsx')
+            df_new = df_new.T
+            T.print_head_n(df_new)
+
+            cm = 1 / 2.54
+
+
+
+
+            for column in df_new:
+                plt.figure(figsize=(7 * cm, 6 * cm))
+
+                print(trend_mark_dict_reverse[column][0])
+
+                df_new[column] = df_new[column].astype(float)
+                plt.bar(df_new.index, df_new[column], color=color_list)
+                plt.xticks([''])
+                plt.ylabel('Percentage (%)')
+                plt.yticks([0, 20, 40, ])
+                plt.title(f'{trend_mark_dict_reverse[column][0]}_{region}')
+                # set MCD as a standard
+                plt.axhline(y=df_new.loc['MCD', column], color='k', linestyle='--', linewidth=0.5)
+
+                plt.tight_layout()
+                # plt.show()
+                plt.savefig(result_root + f'\\long_trends_seasonal_feedback\\figures\\{region}_{trend_mark_dict_reverse[column][0]}.pdf', dpi=300)
 
     def plot_statistic_long_trends_seasonal_feedback_from_df_main(self,df):
 
@@ -3368,10 +3372,11 @@ class plot_dataframe():
                     plt.plot(mean_value_yearly, label=variable, c=color, zorder=zorder, linewidth=linewidth)
                     plt.plot(fit_value_yearly, linestyle='--', label='k={:0.2f},p={:0.4f}'.format(k_value, p_value),
                              c=color, linewidth=linewidth)
+                    print(f'{region}_{variable}','k={:0.2f},p={:0.4f}'.format(k_value, p_value))
                     plt.fill_between(range(len(mean_value_yearly)), up_list, bottom_list, alpha=0.1, zorder=-1,
                                      color=color)
 
-                # plt.legend()
+
                 plt.ylabel('zscore')
                 plt.xlabel('year')
                 major_xticks = np.arange(0, 20, 5)
@@ -3382,6 +3387,7 @@ class plot_dataframe():
                 ax.set_xticks(major_xticks)
                 ax.set_yticks(major_yticks)
                 plt.grid(which='major', alpha=0.5)
+                plt.tight_layout()
                 i = i + 1
         plt.show()
 
@@ -4747,11 +4753,10 @@ def main():
     # process_LAI().run()
     # statistic_analysis().run()
     # frequency_analysis().run()
-    trends_seasonal_feedback().run()
-
+    # trends_seasonal_feedback().run()
     # long_term_seasonal_feedbacks_window_anaysis().run()
     # build_dataframe().run()
-    # plot_dataframe().run()
+    plot_dataframe().run()
     # SEM_wen().run()
     # anaysize_fluxnet().run()
     # ResponseFunction().run()
