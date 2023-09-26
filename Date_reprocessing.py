@@ -2423,7 +2423,7 @@ class trends_seasonal_feedback():
 
     def plot_statistic_long_trends_seasonal_feedback_from_df_SI(self,df):
 
-        product_list = ['MCD','Trendy_ensemble','CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'DLEM_S2_lai', 'IBIS_S2_lai',
+        product_list = ['MCD','CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'DLEM_S2_lai', 'IBIS_S2_lai',
                           'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
                           'LPX-Bern_S2_lai',
                          'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
@@ -2489,14 +2489,15 @@ class trends_seasonal_feedback():
                 plt.bar(df_new.index, df_new[column], color=color_list)
                 plt.xticks([''])
                 plt.ylabel('Percentage (%)')
-                plt.yticks([0, 20, 40, ])
+                plt.yticks([0, 20, 40, 60])
                 plt.title(f'{trend_mark_dict_reverse[column][0]}_{region}')
+                plt.ylim(0, 60)
                 # set MCD as a standard
                 plt.axhline(y=df_new.loc['MCD', column], color='k', linestyle='--', linewidth=0.5)
 
                 plt.tight_layout()
                 # plt.show()
-                plt.savefig(result_root + f'\\long_trends_seasonal_feedback\\figures\\{region}_{trend_mark_dict_reverse[column][0]}.pdf', dpi=300)
+                plt.savefig(result_root + f'\\long_trends_seasonal_feedback\\SI_bar\\{region}_{trend_mark_dict_reverse[column][0]}.pdf', dpi=300)
 
     def plot_statistic_long_trends_seasonal_feedback_from_df_main(self,df):
 
@@ -3329,6 +3330,78 @@ class plot_dataframe():
         T.mk_dir(outdir,force=1)
         outf=outdir+'zscore_result_statistical_annual.npy'
         T.save_npy(result_dic,outf)
+    def plot_calculation(self,df,column_name):
+        dic = {}
+        mean_val = {}
+        confidence_value = {}
+        std_val = {}
+        # year_list = df['year'].to_list()
+        # year_list = set(year_list)  # 取唯一
+        # year_list = list(year_list)
+        # year_list.sort()
+
+        year_list = []
+        for i in range(2000, 2019):
+            year_list.append(i)
+        print(year_list)
+
+        for year in tqdm(year_list):  # 构造字典的键值，并且字典的键：值初始化
+            dic[year] = []
+            mean_val[year] = []
+            confidence_value[year] = []
+
+        for year in year_list:
+            df_pick = df[df['year'] == year]
+            for i, row in tqdm(df_pick.iterrows(), total=len(df_pick)):
+                pix = row.pix
+                val = row[column_name]
+                dic[year].append(val)
+            val_list = np.array(dic[year])
+            # val_list[val_list>1000]=np.nan
+
+            n = len(val_list)
+            mean_val_i = np.nanmean(val_list)
+            std_val_i = np.nanstd(val_list)
+            se = stats.sem(val_list)
+            h = se * stats.t.ppf((1 + 0.95) / 2., n - 1)
+            confidence_value[year] = h
+            mean_val[year] = mean_val_i
+            std_val[year] = std_val_i
+
+        # a, b, r = KDE_plot().linefit(xaxis, val)
+        mean_val_list = []  # mean_val_list=下面的mean_value_yearly
+
+        for year in year_list:
+            mean_val_list.append(mean_val[year])
+        xaxis = range(len(mean_val_list))
+        xaxis = list(xaxis)
+        print(len(mean_val_list))
+        # r, p_value = stats.pearsonr(xaxis, mean_val_list)
+        # k_value, b_value = np.polyfit(xaxis, mean_val_list, 1)
+        k_value, b_value, r, p_value = T.nan_line_fit(xaxis, mean_val_list)
+        print(k_value)
+
+        mean_value_yearly = []
+        up_list = []
+        bottom_list = []
+        fit_value_yearly = []
+        p_value_yearly = []
+
+        for year in year_list:
+            mean_value_yearly.append(mean_val[year])
+            # up_list.append(mean_val[year] + confidence_value[year])
+            # bottom_list.append(mean_val[year] - confidence_value[year])
+            up_list.append(mean_val[year] + 0.125 * std_val[year])
+            bottom_list.append(mean_val[year] - 0.125 * std_val[year])
+
+            fit_value_yearly.append(k_value * (year - year_list[0]) + b_value)
+
+
+
+        return mean_value_yearly, up_list, bottom_list, fit_value_yearly, k_value, p_value
+        # exit()
+
+    pass
 
     def plot_zscore(self):
         f = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\zscore_result_statistical_annual.npy'
@@ -4753,10 +4826,10 @@ def main():
     # process_LAI().run()
     # statistic_analysis().run()
     # frequency_analysis().run()
-    # trends_seasonal_feedback().run()
+    trends_seasonal_feedback().run()
     # long_term_seasonal_feedbacks_window_anaysis().run()
     # build_dataframe().run()
-    plot_dataframe().run()
+    # plot_dataframe().run()
     # SEM_wen().run()
     # anaysize_fluxnet().run()
     # ResponseFunction().run()
