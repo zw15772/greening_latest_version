@@ -2262,9 +2262,9 @@ class trends_seasonal_feedback():
     def run(self):
         # self.calculate_long_trends_seasonal_feedback()
         # self.calculate_long_trends_seasonal_feedback_modeling()
-        # self.plot_statistic_long_trends_seasonal_feedback_from_tif()
-        df=self.long_trends_seasonal_feedback_df()
-        self.plot_statistic_long_trends_seasonal_feedback_from_df_SI(df)
+        self.plot_statistic_long_trends_seasonal_feedback_from_tif()
+        # df=self.long_trends_seasonal_feedback_from_tif_seperately()
+        # self.plot_statistic_long_trends_seasonal_feedback_from_df_SI(df)
 
     def calculate_long_trends_seasonal_feedback(self):
         fdir_early_peak=result_root+rf'\trend_analysis\original\\early_peak\\'
@@ -2343,7 +2343,7 @@ class trends_seasonal_feedback():
             outf = join(outdir, f'{model}.tif')
             DIC_and_TIF().arr_to_tif(arr, outf)
 
-    def long_trends_seasonal_feedback_df(self):  ## create humid and arid dataframe seperately
+    def long_trends_seasonal_feedback_from_tif_seperately(self):  ## create humid and arid dataframe seperately
         fdir = result_root+rf'long_trends_seasonal_feedback\\LAI\\'
 
 
@@ -2370,7 +2370,7 @@ class trends_seasonal_feedback():
         return df
 
 
-    def plot_statistic_long_trends_seasonal_feedback_from_tif(self):
+    def plot_statistic_long_trends_seasonal_feedback_from_tif(self):  #### 生成整体all
         fdir = result_root+rf'long_trends_seasonal_feedback\\LAI\\'
 
 
@@ -2382,7 +2382,7 @@ class trends_seasonal_feedback():
         color_list = ['#F7B36B', '#F9E29F', ]
         color_list.extend(['lavender'] * 14)
 
-        class_label_dict = {'strong stablilizing': -1, 'weak stablilizing': 0, 'amplifying': 1, 'other': -2, }
+        class_label_dict = {'strong stablilizing': -1, 'weak stablilizing': 0, 'amplifying': 1, }
 
         trend_mark_dict_reverse = T.reverse_dic(class_label_dict)
         result_dict = {}
@@ -2398,6 +2398,8 @@ class trends_seasonal_feedback():
                 if np.isnan(val):
                     continue
                 val = int(val)
+                if val == -2:
+                    continue
                 mark_i = trend_mark_dict_reverse[val][0]
                 mark_i_class = class_label_dict[mark_i]
                 if not mark_i_class in dict_i:
@@ -2863,7 +2865,7 @@ class long_term_seasonal_feedbacks_window_anaysis():
                 # x_mean=np.nanmean(x_vals)
 
                 # for i in range(len(x_vals)):
-                #     if x_vals[0]==None:
+                #     if x_vals[0]==None:u
                 #         continue
                 #     x_anomaly=x_vals[i]-x_mean
                 #
@@ -3445,9 +3447,11 @@ class plot_dataframe():
                     plt.plot(mean_value_yearly, label=variable, c=color, zorder=zorder, linewidth=linewidth)
                     plt.plot(fit_value_yearly, linestyle='--', label='k={:0.2f},p={:0.4f}'.format(k_value, p_value),
                              c=color, linewidth=linewidth)
-                    print(f'{region}_{variable}','k={:0.2f},p={:0.4f}'.format(k_value, p_value))
+                    # print(f'{region}_{variable}','k={:0.2f},p={:0.4f}'.format(k_value, p_value))
                     plt.fill_between(range(len(mean_value_yearly)), up_list, bottom_list, alpha=0.1, zorder=-1,
                                      color=color)
+
+
 
 
                 plt.ylabel('zscore')
@@ -4826,10 +4830,10 @@ def main():
     # process_LAI().run()
     # statistic_analysis().run()
     # frequency_analysis().run()
-    trends_seasonal_feedback().run()
+    # trends_seasonal_feedback().run()
     # long_term_seasonal_feedbacks_window_anaysis().run()
     # build_dataframe().run()
-    # plot_dataframe().run()
+    plot_dataframe().run()
     # SEM_wen().run()
     # anaysize_fluxnet().run()
     # ResponseFunction().run()
