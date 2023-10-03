@@ -2262,9 +2262,10 @@ class trends_seasonal_feedback():
     def run(self):
         # self.calculate_long_trends_seasonal_feedback()
         # self.calculate_long_trends_seasonal_feedback_modeling()
-        self.plot_statistic_long_trends_seasonal_feedback_from_tif()
+        # self.plot_statistic_long_trends_seasonal_feedback_from_tif()
         # df=self.long_trends_seasonal_feedback_from_tif_seperately()
         # self.plot_statistic_long_trends_seasonal_feedback_from_df_SI(df)
+        self.plot_statistic_long_trends_seasonal_feedback_from_df_main()
 
     def calculate_long_trends_seasonal_feedback(self):
         fdir_early_peak=result_root+rf'\trend_analysis\original\\early_peak\\'
@@ -2365,7 +2366,7 @@ class trends_seasonal_feedback():
             spatial_dict = DIC_and_TIF().spatial_tif_to_dic(fpath)
             all_spatial_dic[product] = spatial_dict
         df= T.spatial_dics_to_df(all_spatial_dic)
-        df=Dataframe_func(df).df
+        df=Dataframe_func(df).df       # add region
         T.print_head_n(df)
         return df
 
@@ -2421,11 +2422,57 @@ class trends_seasonal_feedback():
         T.df_to_excel(df, result_root + f'\\long_trends_seasonal_feedback\\df\\all.xlsx')
 
 
+    def plot_statistic_long_trends_seasonal_feedback_from_df_main(self):
+        fdir=result_root+rf'long_trends_seasonal_feedback\df\\'
+
+
+        for df in os.listdir(fdir):
+            if not df.endswith('.df'):
+                continue
+            dff=T.load_df(fdir+df)
+            region=df.split('.')[0]
+
+            product_list = ['MCD','Trendy_ensemble']
+
+            class_label_dict = {'strong stablilizing': -1, 'weak stablilizing': 0, 'amplifying': 1,  }
+
+            trend_mark_dict_reverse = T.reverse_dic(class_label_dict)
+
+
+            for product in product_list:
+                cm = 1 / 2.54
+
+                plt.figure(figsize=(5 * cm, 6 * cm))
+
+                mark_i_list = []
+                column_name = f'{product}'
+                ###extract the column
+                dff_temp = dff[[column_name]]
+                ## define label as trend_mark_dict_reverse
+                for i in range(len(dff_temp.index)):
+                    print(dff_temp.index[i])
+
+                    mark_i=trend_mark_dict_reverse[dff_temp.index[i]][0]
+                    mark_i_list.append(mark_i)
+                plt.bar(dff_temp.index, dff_temp[column_name], color='lavender')
+                x_ticks_labels = mark_i_list
+                plt.xticks(dff.index, x_ticks_labels, rotation=45, horizontalalignment='right')
+
+                plt.ylabel('Percentage (%)')
+                plt.tight_layout()
+
+                plt.yticks([0, 20, 40, 60])
+                plt.title(f'{product}_{region}')
+                plt.ylim(0, 60)
+                plt.show()
+
+
+
 
 
     def plot_statistic_long_trends_seasonal_feedback_from_df_SI(self,df):
 
-        product_list = ['MCD','CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'DLEM_S2_lai', 'IBIS_S2_lai',
+        product_list = ['MCD','Trendy_ensemble','CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'DLEM_S2_lai', 'IBIS_S2_lai',
                           'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
                           'LPX-Bern_S2_lai',
                          'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
@@ -2472,8 +2519,8 @@ class trends_seasonal_feedback():
 
 ##############start to plot figure
 
-            # T.save_df(df_new, result_root + f'\\long_trends_seasonal_feedback\\df\\{region}.df')
-            # T.df_to_excel(df_new, result_root + f'\\long_trends_seasonal_feedback\\df\\{region}.xlsx')
+            T.save_df(df_new, result_root + f'\\long_trends_seasonal_feedback\\df\\{region}.df')
+            T.df_to_excel(df_new, result_root + f'\\long_trends_seasonal_feedback\\df\\{region}.xlsx')
             df_new = df_new.T
             T.print_head_n(df_new)
 
@@ -2500,71 +2547,6 @@ class trends_seasonal_feedback():
                 plt.tight_layout()
                 # plt.show()
                 plt.savefig(result_root + f'\\long_trends_seasonal_feedback\\SI_bar\\{region}_{trend_mark_dict_reverse[column][0]}.pdf', dpi=300)
-
-    def plot_statistic_long_trends_seasonal_feedback_from_df_main(self,df):
-
-        product_list = ['MCD','Trendy_ensemble','CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
-                          'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
-                          'LPX-Bern_S2_lai', 'DLEM_S2_lai',
-                         'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
-
-        product_list = ['MCD','Trendy_ensemble','CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
-                          'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
-                          'LPX-Bern_S2_lai', 'DLEM_S2_lai',
-                         'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
-
-
-        color_list = ['#F7B36B', '#F9E29F', ]
-        color_list.extend(['lavender'] * 14)
-
-        class_label_dict = {'strong stablilizing': -1, 'weak stablilizing': 0, 'amplifying': 1, 'other': -2, }
-
-        trend_mark_dict_reverse = T.reverse_dic(class_label_dict)
-        result_dict = {}
-
-        for region in ['Dryland','Humid']:
-            df_region=df[df['HI_class']==region]
-
-            for product in product_list:
-                spatial_dict=T.df_to_spatial_dic(df_region,product)
-                dict_i = {}
-
-                for pix in spatial_dict:
-                    val = spatial_dict[pix]
-                    if np.isnan(val):
-                        continue
-                    val = int(val)
-                    mark_i = trend_mark_dict_reverse[val][0]
-                    mark_i_class = class_label_dict[mark_i]
-                    if not mark_i_class in dict_i:
-                        dict_i[mark_i_class] = []
-                    dict_i[mark_i_class].append(pix)
-                total=0
-                for mark_i_class in dict_i:
-                    total= total + len(dict_i[mark_i_class])
-                result_dict_i={}
-                for mark_i_class in dict_i:
-                    ratio=len(dict_i[mark_i_class])/total
-                    result_dict_i[mark_i_class]=ratio*100
-                result_dict[product]=result_dict_i
-
-            df_new = pd.DataFrame(result_dict)
-            T.save_df(df_new, result_root + f'\\long_trends_seasonal_feedback\\df\\{region}.df')
-            T.df_to_excel(df_new, result_root + f'\\long_trends_seasonal_feedback\\df\\{region}.xlsx')
-
-
-
-            # df_new = df_new.T
-            # T.print_head_n(df_new)
-            # for column in df_new:
-            #     df_new[column] = df_new[column].astype(float)
-            #     plt.bar(df_new.index, df_new[column], color=color_list)
-            #     plt.title(f'{column}')
-            #     plt.xticks(rotation=45, horizontalalignment='right')
-            #
-            #     plt.tight_layout()
-            #     plt.show()
-            #     # plt
 
 
 class Dataframe_func:
@@ -2670,7 +2652,7 @@ class Dataframe_func:
 
 
 
-class long_term_seasonal_feedbacks_window_anaysis():
+class long_term_seasonal_feedbacks_window_anaysis():  ##这个函数没有用
     def run(self):
         self.trend_anaysis()
         # self.window_extraction_trend()
@@ -2678,7 +2660,7 @@ class long_term_seasonal_feedbacks_window_anaysis():
         # self.bivariate_trend()
 
         pass
-    def trend_anaysis(self):
+    def trend_anaysis(self):  ###这个求得是全球平均 average and std
 
         dic_mask_lc_file = data_root + 'Base_data/LC_reclass2.npy'
         dic_mask_lc = T.load_npy(dic_mask_lc_file)
@@ -2689,28 +2671,32 @@ class long_term_seasonal_feedbacks_window_anaysis():
             tiff_mask_landcover_change)
         array_mask_landcover_change[array_mask_landcover_change * 20 > 10] = np.nan
         array_mask_landcover_change = DIC_and_TIF().spatial_arr_to_dic(array_mask_landcover_change)
-        product_list=['CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
-                        'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
-                         'LPX-Bern_S2_lai', 'DLEM_S2_lai',
-                        'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', 'Trendy_ensemble', 'MCD',]
+
+        product_list=['Trendy_ensemble', 'MCD',]
 
         period = 'early_peak'
 
-        fdir_all = result_root + rf'extraction_original_val\LAI\\\\'
-        outdir = result_root + rf'\\trend_anaysis\\original\\{period}\\'
+        fdir_all = result_root + rf'zscore\LAI\{period}\\'
+        outdir = result_root + rf'trend_anaysis\\zscore\\{period}\\'
         T.mk_dir(outdir, force=True)
-        for fdir in tqdm(os.listdir(fdir_all)):
-            fpath=fdir_all+fdir+'\\'+f'during_{period}_{fdir}.npy'
+        result_dic = {}
+        for f in tqdm(os.listdir(fdir_all)):
+            fname=f.split('.')[0]
+            if not fname in product_list:
+                continue
+            if not f.endswith('.npy'):
+                continue
+            fpath=join(fdir_all,f)
 
 
             # fpath=join(fdir_all,fdir)
             print(fpath)
 
-            outf_i = join(outdir, fdir)
-            if os.path.isfile(outf_i):
-                continue
+            outf_i = join(outdir, f)
+            # if os.path.isfile(outf_i):
+            #     continue
             dic = T.load_npy(fpath)
-            trend_dic= {}
+            trend_dic={}
             for pix in dic:
 
                 if pix not in dic_mask_lc:
@@ -2728,19 +2714,31 @@ class long_term_seasonal_feedbacks_window_anaysis():
                 time_series[time_series < -999] = np.nan
                 if np.isnan(np.nanmean(time_series)):
                     continue
-                if np.nanmean(time_series) <= 0.:
-                    continue
+
                 try:
                     a,b,r,p=T.nan_line_fit(range(len(time_series)),time_series)
-                    trend_dic[pix] = a
+                    trend_dic[pix]=a
                     # print(a)
                 except:
-                    trend_dic[pix] = np.nan
-            np.save(outf_i, trend_dic)
-            array = DIC_and_TIF().pix_dic_to_spatial_arr(trend_dic)
-            DIC_and_TIF().arr_to_tif(array, outf_i + '_trend.tif')
+                    trend_dic[pix]=np.nan
+            result_dic[fname]=trend_dic
 
-        pass
+        df = T.spatial_dics_to_df(result_dic)
+        df = Dataframe_func(df).df
+        T.print_head_n(df)
+        for region in ['Dryland','Humid']:
+
+            df_region=df[df['HI_class']==region]
+            for col_name in product_list:
+                if 'pix' in col_name:
+                    continue
+                df_region[col_name] = df_region[col_name].astype(float)
+                average = np.nanmean(df_region[col_name])
+                std = np.nanstd(df_region[col_name])*0.25
+                print(f'{col_name} {region} average:{average:.2f} std:{std:.2f}')
+
+
+            pass
     def window_extraction_trend(self):
         period= 'late'
         fdir_all = result_root + rf'extraction_original_val\\LAI\\'
@@ -4815,9 +4813,9 @@ class ResponseFunction:  # figure 5 in paper
                 plt.imshow(matrix, cmap='RdBu', interpolation='nearest')
 
                 plt.title(f'{region} {z_val_name}')
-                # plt.show()
-                plt.savefig(self.outdir + f'{region}_{z_val_name}.pdf', dpi=300)
-                plt.close()
+                plt.show()
+                # plt.savefig(self.outdir + f'{region}_{z_val_name}.pdf', dpi=300)
+                # plt.close()
 
 
 
@@ -4833,10 +4831,10 @@ def main():
     # trends_seasonal_feedback().run()
     # long_term_seasonal_feedbacks_window_anaysis().run()
     # build_dataframe().run()
-    plot_dataframe().run()
+    # plot_dataframe().run()
     # SEM_wen().run()
     # anaysize_fluxnet().run()
-    # ResponseFunction().run()
+    ResponseFunction().run()
 
 
 
