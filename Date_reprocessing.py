@@ -2043,6 +2043,7 @@ class frequency_analysis():
 
         # This class is used to calculate the structural equation model
         self.this_class_arr = result_root + 'Data_frame\\Frequency\\Trendy_ensemble\\'
+
         self.dff = self.this_class_arr + 'frequency_dataframe.df'
 
         Tools().mk_dir(self.this_class_arr, force=True)
@@ -2233,6 +2234,7 @@ class frequency_analysis():
 
             ax=sns.heatmap(z_list_T, annot=label_matrix, linewidths=0.75,yticklabels=threshold_early_list_str,
                            xticklabels=threshold_late_list_str,cmap='RdBu',vmin=-15,vmax=15,
+                           annot_kws={'fontsize': 8},
                            cbar_kws={'label': 'Frenquency (%)','ticks':[-15, -10,-5, 0, 5, 10,15]},fmt='.1f')
             threshold_early_list_str_format = [f'{i:.2f}' for i in threshold_early_list_reverse]
             threshold_late_list_str_format = [f'{i:.2f}' for i in threshold_late_list_reverse]
@@ -2242,14 +2244,15 @@ class frequency_analysis():
             ax.set_yticklabels(threshold_early_list_str_format, rotation=0, horizontalalignment='right')
             cbar=ax.collections[0].colorbar
             cbar.ax.set_yticklabels([15, 10, 5, 0, 5, 10,15])
-            plt.tight_layout()
+            # plt.tight_layout()
 
 
-            plt.title(f'{region}')
+            plt.title(f'Trendy_{region}')
 
-
-
-        plt.show()
+        # plt.show()
+        # plt.close()
+            plt.savefig(result_root + rf'Data_frame\\Frequency\\Trendy_{region}.pdf', dpi=300, )
+            plt.close()
 
 class trends_seasonal_feedback():
     def __init__(self):
@@ -4827,14 +4830,14 @@ def main():
     # Phenology().run()
     # process_LAI().run()
     # statistic_analysis().run()
-    # frequency_analysis().run()
+    frequency_analysis().run()
     # trends_seasonal_feedback().run()
     # long_term_seasonal_feedbacks_window_anaysis().run()
     # build_dataframe().run()
     # plot_dataframe().run()
     # SEM_wen().run()
     # anaysize_fluxnet().run()
-    ResponseFunction().run()
+    # ResponseFunction().run()
 
 
 
