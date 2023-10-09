@@ -3896,7 +3896,8 @@ class anaysize_fluxnet():
         # self.detrend_zscore()
         # self.composit_sites_df()
         # self.matching_aridity_long_lat()
-        self.plot_early_peak_vs_late()
+        # self.plot_early_peak_vs_late()
+        self.plot_early_peak_vs_late_2()
         pass
 
     def unzip_fluxnet_data(self):
@@ -4618,9 +4619,6 @@ class anaysize_fluxnet():
         T.df_to_excel(df, result_root+'detrend_zscore\FLUXNET_2015\composit_sites_df.xlsx')
 
 
-
-
-
         # np.save(outf, early_peak_vs_late_dic)
 
         pass
@@ -4641,13 +4639,12 @@ class anaysize_fluxnet():
             if len(year_list)>6:
                 selected_site.append(site)
         selected_df=df[df['Site_name'].isin(selected_site)]
-
+        # T.print_head_n(selected_df)
+        # exit()
 
         #####  build frequncy distribution
 
         threshold_early_list = [0, 0.5, 1, 1.5, 2 ]
-
-
 
         threshold_late_list = [-2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2]
         x_name_list = []
@@ -4665,7 +4662,6 @@ class anaysize_fluxnet():
                 early_threshold = threshold_early_list[i]
                 late_threshold = threshold_late_list[j]
 
-
                 df_early_peak = selected_df[selected_df['early_peak'] >= early_threshold]
                 df_early_peak = df_early_peak[df_early_peak['early_peak'] < threshold_early_list[i + 1]]
 
@@ -4675,7 +4671,7 @@ class anaysize_fluxnet():
                 x_name = str(late_threshold) + '-' + str(threshold_late_list[j + 1])
                 x_name_list.append(x_name)
                 y_name_list.append(y_name)
-                freq = len(df_late) / len(selected_df) * 100
+                freq = len(df_late) / len(df_early_peak) * 100
                 frequence_list.append(freq)
 
 
@@ -4701,9 +4697,16 @@ class anaysize_fluxnet():
         frequence_list = np.array(frequence_list)
 
         frequence_list = frequence_list.reshape(len(y_name_list) , len(x_name_list) )
+        sns.heatmap(frequence_list, cmap='RdBu', vmin=0, vmax=100, annot=True, fmt='.1f', xticklabels=x_name_list,)
+        plt.xticks(rotation=45, ha='right')
+        plt.yticks(rotation=45, ha='right')
+        plt.xlabel(xlabel='late')
+        plt.ylabel(ylabel='early_peak')
+        plt.tight_layout()
+        plt.show()
 
-
-        plt.imshow(frequence_list, cmap='Spectral', interpolation='nearest')
+###########################################################################3
+        plt.imshow(frequence_list, cmap='RdBu', interpolation='nearest')
         plt.colorbar()
         plt.xticks(range(len(x_name_list)), x_name_list, rotation=45, ha='right')
         threshold_early_list_label = [str(i) for i in threshold_early_list]
@@ -4716,7 +4719,6 @@ class anaysize_fluxnet():
         plt.show()
 
 
-
         # for site in selected_site:
         #     df_site=selected_df[selected_df['Site_name']==site]
         #     year_list=df_site['year'].values.tolist()
@@ -4727,8 +4729,132 @@ class anaysize_fluxnet():
         #     plt.ylim(-1.5,1.5)
 
 
-
         pass
+
+    def plot_early_peak_vs_late_2(self):  ### using the same way to plot heatmap as plot remote sensing data. all statistical anaysis is the same
+        df=result_root+'detrend_zscore\FLUXNET_2015\composit_sites_df.df'
+        df=pd.read_pickle(df)
+        # df=df[df['class_aridity']=='water_limited']
+        df = df[df['class_aridity'] == 'energy_limited']
+        df=df[df['early_peak']>=0]
+        df=df[df['year']>=2000]
+
+        site_list=T.get_df_unique_val_list(df,'Site_name')
+        selected_site=[]
+        for site in site_list:
+            df_site=df[df['Site_name']==site]
+            year_list=df_site['year'].values.tolist()
+
+            if len(year_list)>6:
+                selected_site.append(site)
+        selected_df=df[df['Site_name'].isin(selected_site)]
+        # T.print_head_n(selected_df)
+        # exit()
+
+        #####  build frequncy distribution
+
+        threshold_early_list = [0, 0.5, 1, 1.5, 2 ]
+
+        threshold_late_list = [-2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2]
+        x_name_list = []
+        y_name_list = []
+        frequence_list = []
+
+        for i in tqdm(range(len(threshold_early_list))):
+            if i >= len(threshold_early_list) - 1:
+                break
+
+            for j in range(len(threshold_late_list)):
+                if j >= len(threshold_late_list) - 1:
+                    break
+
+                early_threshold = threshold_early_list[i]
+                late_threshold = threshold_late_list[j]
+
+                df_early_peak = selected_df[selected_df['early_peak'] >= early_threshold]
+                df_early_peak = df_early_peak[df_early_peak['early_peak'] < threshold_early_list[i + 1]]
+
+                df_late = df_early_peak[df_early_peak['late'] >= late_threshold]
+                df_late = df_late[df_late['late'] < threshold_late_list[j + 1]]
+                y_name = str(early_threshold) + '-' + str(threshold_early_list[i + 1])
+                x_name = str(late_threshold) + '-' + str(threshold_late_list[j + 1])
+                x_name_list.append(x_name)
+                y_name_list.append(y_name)
+                freq = len(df_late) / len(df_early_peak) * 100
+                frequence_list.append(freq)
+
+
+        df_frequencey = pd.DataFrame()
+        df_frequencey['x_name'] = x_name_list
+        df_frequencey['y_name'] = y_name_list
+        df_frequencey['frequence'] = frequence_list
+        T.print_head_n(df_frequencey)
+
+
+        #### plot heatmap
+
+        x_name_list = df_frequencey['x_name'].values.tolist()
+        y_name_list = df_frequencey['y_name'].values.tolist()
+        frequence_list = df_frequencey['frequence'].values.tolist()
+
+        x_name_list = list(set(x_name_list))
+        y_name_list = list(set(y_name_list))
+        x_name_list.sort()
+        y_name_list.sort()
+
+
+        frequence_list = np.array(frequence_list)
+
+        ##################3 start to plot heatmap
+
+        cm = 1 / 2.54
+
+        plt.figure(figsize=(15 * cm, 7 * cm))
+
+        threshold_late_list_reverse = threshold_late_list
+        threshold_early_list_reverse = threshold_early_list[::-1]
+
+        threshold_early_list_str = [f'{i:.5f}' for i in threshold_early_list]
+        threshold_late_list_str = [f'{i:.5f}' for i in threshold_late_list]
+
+
+        z_list = np.array(frequence_list)
+        z_list = z_list.reshape(len(threshold_early_list_str) - 1, len(threshold_late_list_str) - 1)
+        # z_list_T = z_list.T
+        z_list_T = z_list
+        z_list_T = z_list_T[::-1]
+        label_matrix = abs(z_list_T)
+        label_matrix = np.round(label_matrix, 2)
+
+        ax = sns.heatmap(z_list_T, annot=label_matrix, linewidths=0.75, yticklabels=threshold_early_list_str,
+                         xticklabels=threshold_late_list_str, cmap='RdBu', vmin=-15, vmax=15,
+                         annot_kws={'fontsize': 8},
+                         cbar_kws={'label': 'Frenquency (%)', 'ticks': [-15, -10, -5, 0, 5, 10, 15]}, fmt='.1f')
+        threshold_early_list_str_format = [f'{i:.2f}' for i in threshold_early_list_reverse]
+        threshold_late_list_str_format = [f'{i:.2f}' for i in threshold_late_list_reverse]
+
+        ax.set_xticklabels(threshold_late_list_str_format, rotation=45, horizontalalignment='right')
+
+        ax.set_yticklabels(threshold_early_list_str_format, rotation=0, horizontalalignment='right')
+        cbar = ax.collections[0].colorbar
+        cbar.ax.set_yticklabels([15, 10, 5, 0, 5, 10, 15])
+        # plt.tight_layout()
+
+        plt.title('energy-limited sites')
+
+        plt.show()
+        plt.close()
+        # plt.savefig(result_root + rf'Data_frame\\Frequency\\Trendy_{region}.pdf', dpi=300, )
+        # plt.close()
+
+
+
+
+
+
+
+
+
 
 class ResponseFunction:  # figure 5 in paper
     def __init__(self):
@@ -4830,13 +4956,13 @@ def main():
     # Phenology().run()
     # process_LAI().run()
     # statistic_analysis().run()
-    frequency_analysis().run()
+    # frequency_analysis().run()
     # trends_seasonal_feedback().run()
     # long_term_seasonal_feedbacks_window_anaysis().run()
     # build_dataframe().run()
     # plot_dataframe().run()
     # SEM_wen().run()
-    # anaysize_fluxnet().run()
+    anaysize_fluxnet().run()
     # ResponseFunction().run()
 
 
