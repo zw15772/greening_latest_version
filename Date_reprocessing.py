@@ -40,6 +40,8 @@ from netCDF4 import Dataset
 import shutil
 import requests
 from lytools import *
+import semopy
+
 from osgeo import gdal
 
 from osgeo import gdal
@@ -380,7 +382,7 @@ class Resample():
     def run(self):
         self.resample()
         # self.resample_trendy()
-        # self.unify_TIFF()
+        self.unify_TIFF()
 
     def resample(self):
         fdir = data_root + 'Climate\TIFF_monthly\SMsurf\\'
@@ -1693,44 +1695,6 @@ class process_LAI():
                 # plt.show()
                 np.save(outdir + 'during_{}_{}'.format(period, variable), dic_during_variables)  # 修改
 
-    def average_all_trendy(self):  # 将提取的original_dataset average
-        fdir_all = result_root + r'extraction_original_val\LAI\\'
-        outdir = result_root + r'extraction_original_val/Trendy_ensemble\\'
-        Tools().mk_dir(outdir, force=True)
-        period_list = ['early', 'peak', 'late', 'early_peak', 'early_peak_late']
-
-        for period in period_list:
-            product_dic = {}
-
-            for fdir in os.listdir(fdir_all):
-                if 'MOD' in fdir:
-                    continue
-                if 'MCD' in fdir:
-                    continue
-                f='during_{}_{}.npy'.format(period,fdir)
-
-                dic = dict(np.load(fdir_all+fdir+'\\'+f, allow_pickle=True, encoding='latin1').item())
-                product_dic[fdir] = dic
-
-            dic_average = DIC_and_TIF().void_spatial_dic()
-            for pix in product_dic['CABLE-POP_S2_lai']:
-                for product in product_dic:
-                   values = product_dic[product][pix]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        pass
 
 class statistic_analysis():
     def __init__(self):
@@ -2038,11 +2002,12 @@ class statistic_analysis():
 
         pass
 
+
 class frequency_analysis():
     def __init__(self):
 
         # This class is used to calculate the structural equation model
-        self.this_class_arr = result_root + 'Data_frame\\Frequency\\Trendy_ensemble\\'
+        self.this_class_arr = result_root + 'Data_frame\\Frequency\\\LAI3g_MCD_2003_2018\MCD\\'
 
         self.dff = self.this_class_arr + 'frequency_dataframe.df'
 
@@ -2055,7 +2020,7 @@ class frequency_analysis():
 
         ### 1.create frequency dataframe
 
-        # df=self.pick_greening_year_frequency_heatmap()
+        df=self.pick_greening_year_frequency_heatmap()
 
         ## 2. add landcover and trend, row, and some attributes
 
@@ -2066,6 +2031,10 @@ class frequency_analysis():
         df, dff = self.__load_df()
         df_clean = self.clean_df(df)
         self.frenquency_heatmap(df_clean)
+
+        ## 4. plot frequency bar
+        self.frenquency_heatmap_bar(df_clean)
+
 
         pass
 
@@ -2231,6 +2200,10 @@ class frequency_analysis():
             z_list_T = z_list_T[::-1]
             label_matrix=abs(z_list_T)
             label_matrix=np.round(label_matrix,2)
+            print(label_matrix)
+            # np.save(result_root + rf'Data_frame\\Frequency\\LAI3g_MCD_2003_2018\\MCD_{region}.npy', label_matrix)
+            # exit()
+
 
             ax=sns.heatmap(z_list_T, annot=label_matrix, linewidths=0.75,yticklabels=threshold_early_list_str,
                            xticklabels=threshold_late_list_str,cmap='RdBu',vmin=-15,vmax=15,
@@ -2249,10 +2222,319 @@ class frequency_analysis():
 
             plt.title(f'Trendy_{region}')
 
-        # plt.show()
-        # plt.close()
-            plt.savefig(result_root + rf'Data_frame\\Frequency\\Trendy_{region}.pdf', dpi=300, )
+        plt.show()
+        plt.close()
+        #     plt.savefig(result_root + rf'Data_frame\\Frequency\\Trendy_{region}.pdf', dpi=300, )
+        #     plt.close()
+
+    def frenquency_heatmap_bar(self):
+
+        fdir = join(data_root, 'Frequency/LAI3g')
+        outdir = join(self.this_class_png, 'LAI3g')
+        T.mk_dir(outdir)
+        for f in T.listdir(fdir):
+            arr = np.load(join(fdir, f))
+            flag = 0
+            strong_stabilization_sum_list = []
+            weak_stabilization_sum_list = []
+            amplification_sum_list = []
+            for arr_i in arr:
+                strong_stabilization = arr_i[:6]
+                weak_stabilization = arr_i[6:12 - flag]
+                amplification = arr_i[12 - flag:]
+                flag += 1
+                strong_stabilization_sum = np.sum(strong_stabilization)
+                weak_stabilization_sum = np.sum(weak_stabilization)
+                amplification_sum = np.sum(amplification)
+
+                strong_stabilization_sum_list.append(strong_stabilization_sum)
+                weak_stabilization_sum_list.append(weak_stabilization_sum)
+                amplification_sum_list.append(amplification_sum)
+            strong_stabilization_sum_list = np.array(strong_stabilization_sum_list)
+            weak_stabilization_sum_list = np.array(weak_stabilization_sum_list)
+            amplification_sum_list = np.array(amplification_sum_list)
+
+            plt.bar(np.arange(len(arr)), strong_stabilization_sum_list, label='strong_stabilization')
+            plt.bar(np.arange(len(arr)), weak_stabilization_sum_list, bottom=strong_stabilization_sum_list,
+                    label='weak_stabilization')
+            plt.bar(np.arange(len(arr)), amplification_sum_list,
+                    bottom=strong_stabilization_sum_list + weak_stabilization_sum_list, label='amplification')
+            # plt.legend()
+            plt.title(f)
+            outf = join(outdir, f.replace('.npy', '.pdf'))
+            plt.savefig(outf)
             plt.close()
+            # plt.show()
+        T.open_path_and_file(outdir)
+
+class frequency_analysis_for_two_period():  ## calculated
+
+    def __init__(self):
+        # self.period='2012_2021'
+        self.period='2003_2011'
+
+        # This class is used to calculate the structural equation model
+        self.this_class_arr = result_root + rf'Data_frame\Frequency\Trendy_ensemble\\'
+
+        self.dff = self.this_class_arr + rf'frequency_dataframe_{self.period}.df'
+
+        Tools().mk_dir(self.this_class_arr, force=True)
+
+
+        pass
+
+    def run(self):
+
+        ### 1.create frequency dataframe
+
+        # df=self.pick_greening_year_frequency_heatmap()
+
+        ## 2. add landcover and trend, row, and some attributes
+
+        # call the function in the class of 'build_dataframe'
+
+        ## 3. plot frequency heatmap
+
+        # df, dff = self.__load_df()
+        #
+        # self.frenquency_heatmap(df,self.period)
+
+        ## 4. plot frequency bar
+        self.frenquency_heatmap_bar()
+
+
+
+        pass
+
+    def __load_df(self):
+        dff = self.dff
+        df = T.load_df(dff)
+
+        return df, dff
+        # return df_early,dff
+
+    def clean_df(self, df):
+        df = df[df['row'] < 120]
+        # df = df[df['HI_class'] == 'Humid']
+        # df = df[df['HI_class'] == 'Dryland']
+        df = df[df['max_trend'] < 10]
+
+        df = df[df['landcover_GLC'] != 'Crop']
+
+        return df
+
+
+    def pick_greening_year_frequency_heatmap(self):  # 通过pick years and calculate frequency
+        period='2003_2011'
+
+        f_early_peak_LAI = result_root + rf'\\detrend_zscore\\{period}\\early_peak\\MCD.npy'
+        f_late_LAI = result_root + rf'\detrend_zscore\\{period}\\late\\MCD.npy'
+        outdir = result_root + rf'Data_frame/Frequency//MCD///'
+        outf = outdir + f'frequency_dataframe_{period}.df'
+        T.mk_dir(outdir, force=1)
+        dic_early_peak_LAI = dict(np.load(f_early_peak_LAI, allow_pickle=True, ).item())
+        dic_late_LAI = dict(np.load(f_late_LAI, allow_pickle=True, ).item())
+        # threshold_early_list=np.linspace(-2, 2, 21)
+        #
+        # threshold_late_list=np.linspace(-2, 2, 21)
+
+        threshold_early_list = [0, 0.5, 1, 1.5, 2, 2.5, 3]
+
+        threshold_late_list = [-3, -2.5, -2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2, 2.5, 3]
+
+        all_result_dic={}
+
+
+        for i in tqdm(range(len(threshold_early_list))):
+            if i >= len(threshold_early_list) - 1:
+                break
+
+            for j in range(len(threshold_late_list)):
+                if j >= len(threshold_late_list) - 1:
+                    break
+
+                early_threshold=threshold_early_list[i]
+                late_threshold=threshold_late_list[j]
+
+                spatial_dic={}
+                for pix in dic_early_peak_LAI:
+
+                    early_peak_LAI = dic_early_peak_LAI[pix]
+
+                    # print(len(early_peak_LAI))
+                    if not pix in dic_late_LAI:
+                        continue
+                    late_LAI=dic_late_LAI[pix]
+
+                    early_condition1=early_peak_LAI > threshold_early_list[i]
+                    early_condition2=early_peak_LAI < threshold_early_list[i + 1]
+                    early_condition_intersect_index=np.logical_and(early_condition1, early_condition2)
+
+                    index_early_peak_LAI = np.where(early_condition_intersect_index)
+                    index_early_peak_LAI=np.array(index_early_peak_LAI)
+                    index_early_peak_LAI=index_early_peak_LAI.flatten()
+
+                    if threshold_late_list[j]>=0:
+                        factor=1
+                    else:
+                        factor=-1
+                    late_condition1=late_LAI > threshold_late_list[j]
+                    late_condition2= late_LAI < threshold_late_list[j+1]
+
+
+                    late_LAI_condition_intersect_index = np.logical_and(late_condition1, late_condition2)
+
+                    index_late_LAI = np.where(late_LAI_condition_intersect_index)
+
+                    intersect_index = np.intersect1d(index_early_peak_LAI, index_late_LAI)
+                    if len(index_early_peak_LAI)==0:
+                        continue
+
+                    frequency=len(intersect_index)/len(index_early_peak_LAI)*100*factor
+
+
+
+                    spatial_dic[pix] = frequency
+                    column_name=f'{early_threshold:0.5f}-{late_threshold:0.5f}'
+                    all_result_dic[column_name]=spatial_dic
+
+        df=T.spatial_dics_to_df(all_result_dic)
+
+        T.save_df(df,outf)
+        T.df_to_excel(df,outf)
+        return df
+
+    def build_frequency_heatmap_dataframe(self,df, P_PET_fdir):
+
+
+        build_dataframe().add_row(df)
+        build_dataframe().add_NDVI_mask(df)
+        build_dataframe().add_GLC_landcover_data_to_df(df)
+        build_dataframe().add_max_trend_to_df(df)
+        P_PET_dic =build_dataframe().P_PET_ratio(P_PET_fdir)
+        P_PET_reclass_dic = build_dataframe(P_PET_fdir)
+        df = T.add_spatial_dic_to_df(df, P_PET_reclass_dic, 'HI_class')
+
+
+        pass
+
+    def frenquency_heatmap(self,df,period):
+
+        T.print_head_n(df, 10)
+
+        # df = df.drop_duplicates(subset=['pix'])
+        vals_dic = DIC_and_TIF().void_spatial_dic()
+        regions = ['Humid', 'Dryland']
+        cm = 1 / 2.54
+
+        for region in regions:
+            plt.figure(figsize=(15 * cm, 7 * cm))
+
+            df_temp = df[df['HI_class'] == region]
+
+            threshold_early_list = [0, 0.5, 1, 1.5, 2, 2.5, 3]
+
+            threshold_late_list = [-3, -2.5, -2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2, 2.5, 3]
+
+            threshold_late_list_reverse = threshold_late_list
+            threshold_early_list_reverse = threshold_early_list[::-1]
+
+            threshold_early_list_str = [f'{i:.5f}' for i in threshold_early_list]
+            threshold_late_list_str = [f'{i:.5f}' for i in threshold_late_list]
+
+            x_list = []
+            y_list = []
+            z_list = []
+
+            for x in threshold_early_list_str:
+                for y in threshold_late_list_str:
+                    key = f'{x}-{y}'
+                    if key not in df_temp.keys():
+                        continue
+                    vals = df_temp[key].to_list()
+                    # plt.hist(vals,bins=20)
+                    # plt.show()
+
+                    vals = np.array(vals)
+                    # vals[vals==0]=np.nan
+                    vals_mean = np.nanmean(vals)
+                    z_list.append(vals_mean)
+                    x_list.append(x)
+                    y_list.append(y)
+
+            z_list = np.array(z_list)
+            z_list = z_list.reshape(len(threshold_early_list_str) - 1, len(threshold_late_list_str) - 1)
+            # z_list_T = z_list.T
+            z_list_T = z_list
+            z_list_T = z_list_T[::-1]
+            label_matrix = abs(z_list_T)
+            label_matrix = np.round(label_matrix, 2)
+            print(label_matrix)
+            np.save(result_root + rf'Data_frame\\Frequency\\\\\Trendy_ensemble\\{region}_{period}.npy', label_matrix)
+
+
+
+            ax = sns.heatmap(z_list_T, annot=label_matrix, linewidths=0.75, yticklabels=threshold_early_list_str,
+                             xticklabels=threshold_late_list_str, cmap='RdBu', vmin=-15, vmax=15,
+                             annot_kws={'fontsize': 8},
+                             cbar_kws={'label': 'Frenquency (%)', 'ticks': [-15, -10, -5, 0, 5, 10, 15]}, fmt='.1f')
+            threshold_early_list_str_format = [f'{i:.2f}' for i in threshold_early_list_reverse]
+            threshold_late_list_str_format = [f'{i:.2f}' for i in threshold_late_list_reverse]
+
+            ax.set_xticklabels(threshold_late_list_str_format, rotation=45, horizontalalignment='right')
+
+            ax.set_yticklabels(threshold_early_list_str_format, rotation=0, horizontalalignment='right')
+            cbar = ax.collections[0].colorbar
+            cbar.ax.set_yticklabels([15, 10, 5, 0, 5, 10, 15])
+            # plt.tight_layout()
+
+            plt.title(f'Trendy_{region}')
+
+        plt.show()
+        plt.close()
+        #     plt.savefig(result_root + rf'Data_frame\\Frequency\\Trendy_{region}.pdf', dpi=300, )
+        #     plt.close()
+    def frenquency_heatmap_bar(self):
+
+        fdir = result_root+rf'Data_frame\Frequency\MCD\\'
+        outdir = result_root+rf'Data_frame\Frequency\MCD\\'
+        T.mk_dir(outdir)
+        for f in T.listdir(fdir):
+            if not f.endswith('.npy'):
+                continue
+            arr = np.load(join(fdir, f))
+            flag = 0
+            strong_stabilization_sum_list = []
+            weak_stabilization_sum_list = []
+            amplification_sum_list = []
+            for arr_i in arr:
+                strong_stabilization = arr_i[:6]
+                weak_stabilization = arr_i[6:12 - flag]
+                amplification = arr_i[12 - flag:]
+                flag += 1
+                strong_stabilization_sum = np.sum(strong_stabilization)
+                weak_stabilization_sum = np.sum(weak_stabilization)
+                amplification_sum = np.sum(amplification)
+
+                strong_stabilization_sum_list.append(strong_stabilization_sum)
+                weak_stabilization_sum_list.append(weak_stabilization_sum)
+                amplification_sum_list.append(amplification_sum)
+            strong_stabilization_sum_list = np.array(strong_stabilization_sum_list)
+            weak_stabilization_sum_list = np.array(weak_stabilization_sum_list)
+            amplification_sum_list = np.array(amplification_sum_list)
+
+            plt.bar(np.arange(len(arr)), strong_stabilization_sum_list, label='strong_stabilization')
+            plt.bar(np.arange(len(arr)), weak_stabilization_sum_list, bottom=strong_stabilization_sum_list,
+                    label='weak_stabilization')
+            plt.bar(np.arange(len(arr)), amplification_sum_list,
+                    bottom=strong_stabilization_sum_list + weak_stabilization_sum_list, label='amplification')
+            # plt.legend()
+            plt.title(f)
+            outf = join(outdir, f.replace('.npy', '.pdf'))
+            plt.savefig(outf)
+            plt.close()
+            plt.show()
+        # T.open_path_and_file(outdir)
 
 class trends_seasonal_feedback():
     def __init__(self):
@@ -2927,24 +3209,17 @@ class long_term_seasonal_feedbacks_window_anaysis():  ##这个函数没有用
 
 
 class build_dataframe():
-    def __init__(self):
 
-        self.this_class_arr = result_root + 'Data_frame\detrend_zscore_monthly\\'
-
-        Tools().mk_dir(self.this_class_arr, force=True)
-        self.dff = self.this_class_arr + 'detrend_zscore_monthly.df'
-        self.P_PET_fdir = rf'C:\Users\pcadmin\Desktop\Data\Base_data\aridity_P_PET_dic\\'
-        pass
 
 
 
     def __init__(self):
 
-        self.this_class_arr = result_root + 'Data_frame\detrend_zscore\\'
+        self.this_class_arr = result_root + 'Data_frame\Frequency\MCD\\'
         # self.this_class_arr = result_root + rf'Data_frame\Frequency\Trendy_ensemble\\'
 
         Tools().mk_dir(self.this_class_arr, force=True)
-        self.dff = self.this_class_arr + 'detrend_zscore.df'
+        self.dff = self.this_class_arr + 'frequency_dataframe_2012_2021.df'
         self.P_PET_fdir = data_root+rf'\Base_data\aridity_P_PET_dic\\'
         pass
 
@@ -2952,7 +3227,7 @@ class build_dataframe():
 
         df = self.__gen_df_init(self.dff)
         # df=self.foo1(df)
-        df=self.add_detrend_zscore_to_df(df)
+        # df=self.add_detrend_zscore_to_df(df)
         #
         # df = self.add_row(df)
         #
@@ -2962,9 +3237,9 @@ class build_dataframe():
         #
         # df = self.add_GLC_landcover_data_to_df(df)
         #
-        # P_PET_dic = self.P_PET_ratio(self.P_PET_fdir)
-        # P_PET_reclass_dic = self.P_PET_reclass_2(P_PET_dic)
-        # df = T.add_spatial_dic_to_df(df, P_PET_reclass_dic, 'HI_class')
+        P_PET_dic = self.P_PET_ratio(self.P_PET_fdir)
+        P_PET_reclass_dic = self.P_PET_reclass_2(P_PET_dic)
+        df = T.add_spatial_dic_to_df(df, P_PET_reclass_dic, 'HI_class')
 
         # df=self.__rename_dataframe_columns(df)
         # df=self.show_field(df)
@@ -3819,51 +4094,97 @@ class SEM_wen:
         return df
 
     def model_description_not_detrend(self):
-        # desc_water_limited = '''
-        #             # regressions
-        #             detrend_early_peak_MODIS_LAI_zscore~ detrend_early_Temp_zscore + detrend_early_SPI3_zscore
-        #                             detrend_peak_GLEAM_SMroot_zscore~   detrend_early_peak_MODIS_LAI_zscore+ detrend_peak_SPI3_zscore
-        #                             detrend_late_MODIS_LAI_zscore ~ detrend_peak_GLEAM_SMroot_zscore + detrend_late_Temp_zscore+ detrend_peak_SPI3_zscore
-        #             # residual correlations
-        #             '''
-        desc_energy_limited = '''
-                            # regressions
 
+        # desc_energy_limited = '''
+        #                     # regressions
+        #
+        #                     early_peak_MCD~early_Temp+early_precip
+        #
+        #                     peak_SMroot~  early_peak_MCD+peak_precip
+        #
+        #                     late_MCD ~ peak_SMroot + late_Temp
+        #
+        #                     # residual correlations
+        #                      early_peak_MCD~~early_peak_MCD
+        #                         peak_SMroot~~peak_SMroot
+        #                         late_MCD~~late_MCD
+        #
+        #                         early_peak_MCD~~early_Temp
+        #                         early_peak_MCD~~early_precip
+        #                         peak_SMroot~~early_peak_MCD
+        #                         peak_SMroot~~peak_precip
+        #                         late_MCD~~peak_SMroot
+        #                         late_MCD~~late_Temp
+        #
+        #                     '''
+
+   ###### test
+        desc_energy_limited = '''
                             early_peak_MCD~early_Temp+early_precip
 
-                            peak_SMroot_zscore~  early_peak_MCD+peak_precip
+                            peak_SMsurf~  early_peak_MCD
+                            peak_SMsurf~  peak_precip
 
-                            late_MCD ~ peak_SMroot + late_Temp
+                            late_MCD ~ peak_SMsurf + peak_Temp+peak_precip
+
+
 
                             # residual correlations
+                            early_peak_MCD~~early_peak_MCD
+                            peak_SMsurf~~peak_SMsurf
+                            late_MCD~~late_MCD
+
+                            early_peak_MCD~~early_Temp
+                            early_peak_MCD~~early_precip
+
+
+                            peak_SMsurf~~early_peak_MCD
+                            peak_SMsurf~~peak_precip
+
+                            late_MCD~~peak_SMsurf
+                            late_MCD~~peak_Temp
+                            late_MCD~~peak_precip
+
+
                             '''
 
 
-        desc_water_limited = '''
-                                 # regressions
-                                 early_peak_MCD~ early_Temp + early_precip
-                                 peak_SMroot~ early_peak_MCD+peak_precip
-                                 late_MCD ~ peak_SMroot + late_Temp
-                               # residual correlations
-                                 '''
-
         # desc_water_limited = '''
-        #                                 # regressions
-        #                                 early_peak_MCD~ early_Temp + early_precip
-        #                                 peak_SMroot~ early_peak_MCD+peak_precip
-        #                                 late_MCD ~ peak_SMroot + late_Temp
-        #                               # residual correlations
-        #                                 '''
-        # desc_energy_limited = '''
-        #                     # regressions
-        #                     detrend_early_peak_Trendy_ensemble_zscore~ detrend_early_Temp_zscore + detrend_early_SPI3_zscore
-        #                     detrend_peak_GLEAM_SMroot_zscore~  detrend_early_peak_Trendy_ensemble_zscore+detrend_peak_SPI3_zscore
-        #                     detrend_late_Trendy_ensemble_zscore ~ detrend_peak_GLEAM_SMroot_zscore + detrend_late_Temp_zscore
-        #                   # residual correlations
+        #                         # regressions
+        #
+        #                     early_peak_MCD~early_Temp+early_precip
+        #
+        #                     peak_SMsurf~  early_peak_MCD
+        #                     peak_SMsurf~  peak_precip
+        #
+        #                     late_MCD ~ peak_SMsurf + peak_Temp+peak_precip
+        #
+        #
+        #
+        #                     # residual correlations
+        #                     early_peak_MCD~~early_peak_MCD
+        #                     peak_SMsurf~~peak_SMsurf
+        #                     late_MCD~~late_MCD
+        #
+        #                     early_peak_MCD~~early_Temp
+        #                     early_peak_MCD~~early_precip
+        #
+        #
+        #                     peak_SMsurf~~early_peak_MCD
+        #                     peak_SMsurf~~peak_precip
+        #
+        #                     late_MCD~~peak_SMsurf
+        #                     late_MCD~~peak_Temp
+        #
+        #
+        #
+        #
+        #
         #                     '''
 
 
-        return desc_water_limited
+
+        return desc_energy_limited
 
 
     def SEM_model(self,df,desc):
@@ -3871,8 +4192,8 @@ class SEM_wen:
         res = mod.fit(df)
         # semopy.report(mod, f'SEM_result/{ltd}-{lc}')
         # semopy.report(mod, f'SEM_result/{ltd}')
-        # outf=self.outdir+'water_limited'
-        outf = self.outdir + 'energy_limited_MCD'
+        # outf=self.outdir+'energy_limited'
+        outf = self.outdir + 'early_limited_test'
         semopy.report(mod, outf)
 
 class anaysize_fluxnet():
@@ -4733,9 +5054,12 @@ class anaysize_fluxnet():
 
     def plot_early_peak_vs_late_2(self):  ### using the same way to plot heatmap as plot remote sensing data. all statistical anaysis is the same
         df=result_root+'detrend_zscore\FLUXNET_2015\composit_sites_df.df'
+
         df=pd.read_pickle(df)
-        # df=df[df['class_aridity']=='water_limited']
-        df = df[df['class_aridity'] == 'energy_limited']
+
+
+        df=df[df['class_aridity']=='water_limited']
+        # df = df[df['class_aridity'] == 'energy_limited']
         df=df[df['early_peak']>=0]
         df=df[df['year']>=2000]
 
@@ -4744,11 +5068,14 @@ class anaysize_fluxnet():
         for site in site_list:
             df_site=df[df['Site_name']==site]
             year_list=df_site['year'].values.tolist()
+            selected_site.append(site)
 
-            if len(year_list)>6:
-                selected_site.append(site)
+            # if len(year_list)>4:   ######### 由于数据量太少，所以不做限制
+            #     selected_site.append(site)
+
         selected_df=df[df['Site_name'].isin(selected_site)]
-        # T.print_head_n(selected_df)
+
+        T.print_head_n(selected_df)
         # exit()
 
         #####  build frequncy distribution
@@ -4764,9 +5091,15 @@ class anaysize_fluxnet():
             if i >= len(threshold_early_list) - 1:
                 break
 
+
             for j in range(len(threshold_late_list)):
                 if j >= len(threshold_late_list) - 1:
                     break
+
+                if threshold_late_list[j] >= 0:
+                    factor = 1
+                else:
+                    factor = -1
 
                 early_threshold = threshold_early_list[i]
                 late_threshold = threshold_late_list[j]
@@ -4780,8 +5113,15 @@ class anaysize_fluxnet():
                 x_name = str(late_threshold) + '-' + str(threshold_late_list[j + 1])
                 x_name_list.append(x_name)
                 y_name_list.append(y_name)
-                freq = len(df_late) / len(df_early_peak) * 100
+
+                if len(df_early_peak)==0:
+                    freq=np.nan
+                    frequence_list.append(freq)
+                    continue
+                freq = len(df_late) / len(df_early_peak) * 100*factor
                 frequence_list.append(freq)
+                # print(len(df_early_peak))
+                # exit()
 
 
         df_frequencey = pd.DataFrame()
@@ -4825,11 +5165,16 @@ class anaysize_fluxnet():
         z_list_T = z_list_T[::-1]
         label_matrix = abs(z_list_T)
         label_matrix = np.round(label_matrix, 2)
+        plt.imshow(label_matrix)
+        plt.colorbar()
+        plt.show()
+        np.save(result_root + rf'Data_frame\\Frequency\\Flux_all.npy', label_matrix)
+        exit()
 
         ax = sns.heatmap(z_list_T, annot=label_matrix, linewidths=0.75, yticklabels=threshold_early_list_str,
-                         xticklabels=threshold_late_list_str, cmap='RdBu', vmin=-15, vmax=15,
+                         xticklabels=threshold_late_list_str, cmap='RdBu', vmin=-30, vmax=30,
                          annot_kws={'fontsize': 8},
-                         cbar_kws={'label': 'Frenquency (%)', 'ticks': [-15, -10, -5, 0, 5, 10, 15]}, fmt='.1f')
+                         cbar_kws={'label': 'Frenquency (%)', 'ticks': [-30, -20, -10, 0,10, 20, 30]}, fmt='.1f')
         threshold_early_list_str_format = [f'{i:.2f}' for i in threshold_early_list_reverse]
         threshold_late_list_str_format = [f'{i:.2f}' for i in threshold_late_list_reverse]
 
@@ -4837,15 +5182,15 @@ class anaysize_fluxnet():
 
         ax.set_yticklabels(threshold_early_list_str_format, rotation=0, horizontalalignment='right')
         cbar = ax.collections[0].colorbar
-        cbar.ax.set_yticklabels([15, 10, 5, 0, 5, 10, 15])
+        cbar.ax.set_yticklabels([30, 20, 10, 0,10, 20, 30])
         # plt.tight_layout()
 
-        plt.title('energy-limited sites')
+        plt.title('water_limited sites')
 
-        plt.show()
-        plt.close()
-        # plt.savefig(result_root + rf'Data_frame\\Frequency\\Trendy_{region}.pdf', dpi=300, )
+        # plt.show()
         # plt.close()
+        plt.savefig(result_root + rf'Data_frame\\Frequency\\Flux_water_limited.pdf', dpi=300, )
+        plt.close()
 
 
 
@@ -4957,12 +5302,14 @@ def main():
     # process_LAI().run()
     # statistic_analysis().run()
     # frequency_analysis().run()
+    frequency_analysis_for_two_period().run()
+
     # trends_seasonal_feedback().run()
     # long_term_seasonal_feedbacks_window_anaysis().run()
     # build_dataframe().run()
     # plot_dataframe().run()
     # SEM_wen().run()
-    anaysize_fluxnet().run()
+    # anaysize_fluxnet().run()
     # ResponseFunction().run()
 
 
