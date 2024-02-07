@@ -82,7 +82,7 @@ class nctotif():
 
     def run (self):
         # self.nctotif_CRU()
-        self.nc_to_tif_GLEAM()
+        # self.nc_to_tif_GLEAM()
         self.nc_to_tif_Trendy()
 
 
@@ -155,9 +155,11 @@ class nctotif():
 
 
     def nc_to_tif_Trendy(self):
-        fdir = data_root + 'LAI\\'
+        fdir = data_root + 'TRENDY_SM\\TRENDY_nc\\'
 
         for f in os.listdir(fdir):
+            if not 'DLEM' in f:
+                continue
 
             if f.startswith('.'):
                 continue
@@ -176,7 +178,7 @@ class nctotif():
 
             # nc_to_tif_template(fdir+f,var_name='lai',outdir=outdir,yearlist=yearlist)
             try:
-                self.nc_to_tif_template(fdir + f, var_name='lai', outdir=outdir, yearlist=yearlist)
+                self.nc_to_tif_template(fdir + f, var_name='mrso', outdir=outdir, yearlist=yearlist)
             except Exception as e:
                 print(e)
                 continue
@@ -380,50 +382,53 @@ class Resample():
         data_root = 'D:/Greening/Data/'
         pass
     def run(self):
-        self.resample()
+        # self.resample()
         # self.resample_trendy()
         self.unify_TIFF()
 
     def resample(self):
-        fdir = data_root + 'Climate\TIFF_monthly\SMsurf\\'
-        outdir = data_root + rf'Climate\resample_monthly\SMsurf\\'
+        fdir_all = data_root + 'Trendy_SM\Trendy_TIFF\\'
 
-        T.mk_dir(outdir, force=True)
         year = list(range(2000, 2023))
         # print(year)
         # exit()
-        for f in tqdm(os.listdir(fdir), ):
-            if not f.endswith('.tif'):
-                continue
-            if f.startswith('._'):
-                continue
+        for fdir in tqdm(os.listdir(fdir_all)):
+            outdir = data_root + rf'Trendy_SM\resample_SM\\{fdir}\\'
 
-            # year_selection=f.split('.')[1].split('_')[1]
-            # print(year_selection)
-            # if not int(year_selection) in year:  ##一定注意格式
-            #     continue
-            # fcheck=f.split('.')[0]+f.split('.')[1]+f.split('.')[2]+'.'+f.split('.')[3]
-            # if os.path.isfile(outdir+'resample_'+fcheck):  # 文件已经存在的时候跳过
-            #     continue
-            # date = f[0:4] + f[5:7] + f[8:10] MODIS
-            print(f)
-            # exit()
-            date = f.split('.')[0]
-            date_2 = date.split('_')[-1]
-            print(date_2)
+            T.mk_dir(outdir, force=True)
 
-            # print(date)
-            # exit()
-            dataset = gdal.Open(fdir + f)
-            # band = dataset.GetRasterBand(1)
-            # newRows = dataset.YSize * 2
-            # newCols = dataset.XSize * 2
-            try:
-                gdal.Warp(outdir + '{}.tif'.format(date_2), dataset, xRes=0.5, yRes=0.5, dstSRS='EPSG:4326')
-            # 如果不想使用默认的最近邻重采样方法，那么就在Warp函数里面增加resampleAlg参数，指定要使用的重采样方法，例如下面一行指定了重采样方法为双线性重采样：
-            # gdal.Warp("resampletif.tif", dataset, width=newCols, height=newRows, resampleAlg=gdalconst.GRIORA_Bilinear)
-            except Exception as e:
-                pass
+            for f in tqdm(os.listdir(fdir_all+fdir+'\\'), ):
+                if not f.endswith('.tif'):
+                    continue
+                if f.startswith('._'):
+                    continue
+
+                # year_selection=f.split('.')[1].split('_')[1]
+                # print(year_selection)
+                # if not int(year_selection) in year:  ##一定注意格式
+                #     continue
+                # fcheck=f.split('.')[0]+f.split('.')[1]+f.split('.')[2]+'.'+f.split('.')[3]
+                # if os.path.isfile(outdir+'resample_'+fcheck):  # 文件已经存在的时候跳过
+                #     continue
+                # date = f[0:4] + f[5:7] + f[8:10] MODIS
+                print(f)
+                # exit()
+                date = f.split('.')[0]
+                date_2 = date.split('_')[-1]
+                print(date_2)
+
+                # print(date)
+                # exit()
+                dataset = gdal.Open(fdir_all + fdir+'\\'+ f)
+                # band = dataset.GetRasterBand(1)
+                # newRows = dataset.YSize * 2
+                # newCols = dataset.XSize * 2
+                try:
+                    gdal.Warp(outdir + '{}.tif'.format(date_2), dataset, xRes=0.5, yRes=0.5, dstSRS='EPSG:4326')
+                # 如果不想使用默认的最近邻重采样方法，那么就在Warp函数里面增加resampleAlg参数，指定要使用的重采样方法，例如下面一行指定了重采样方法为双线性重采样：
+                # gdal.Warp("resampletif.tif", dataset, width=newCols, height=newRows, resampleAlg=gdalconst.GRIORA_Bilinear)
+                except Exception as e:
+                    pass
 
     def resample_trendy(self):
         fdir_all = data_root + '\Trendy\Trendy_TIFF\\'
@@ -474,11 +479,11 @@ class Resample():
                 except Exception as e:
                     pass
     def unify_TIFF(self):
-        fdir_all=data_root + rf'Trendy\Trendy_resample\\'
+        fdir_all=data_root + rf'Trendy_SM\resample_SM\\'
 
 
         for fdir in tqdm(os.listdir(fdir_all)):
-            outdir = data_root + rf'Trendy\Trendy_unify\\{fdir}\\'
+            outdir = data_root + rf'Trendy_SM\Trendy_SM_unify\\{fdir}\\'
             T.mk_dir(outdir, force=True)
             for f in tqdm(os.listdir(fdir_all+fdir+'\\')):
                 fpath=fdir_all+fdir+'\\'+f
@@ -500,7 +505,7 @@ class TIFtoDIC():
         # self.tif2dict()
         self.tif2dict_trendy()
     def trendy_ensemble_calculation(self):
-        fdir_all = data_root + rf'LAI\\Trendy_unify\\'
+        fdir_all = data_root + rf'Trendy_SM\Trendy_SM_unify\\'
         outdir = data_root +'LAI\Trendy_unify\Trendy_enemble2\\'
         T.mk_dir(outdir, force=True)
         year_list = list(range(2000, 2023))
@@ -663,7 +668,7 @@ class TIFtoDIC():
         np.save(outdir + 'per_pix_dic_%03d' % 0, temp_dic)
 
     def tif2dict_trendy(self):
-        fdir_all=data_root + rf'\LAI\Trendy_Yang\\'
+        fdir_all=data_root + rf'Trendy_SM\Trendy_SM_unify\\'
 
         NDVI_mask_f=data_root+rf'/Base_data/NDVI_mask.tif'
         array_mask, originX, originY, pixelWidth, pixelHeight = to_raster.raster2array(NDVI_mask_f)
@@ -672,13 +677,11 @@ class TIFtoDIC():
 
         year_list=list(range(2003,2022))  # 作为筛选条件
         for fdir in tqdm(os.listdir(fdir_all),desc='loading...'):
-            if not 'Trendy' in fdir:
-                continue
 
 
             all_array = []
 
-            outdir = data_root + 'LAI\\DIC\\{}\\'.format(fdir)
+            outdir = data_root + 'Trendy_SM\\DIC\\{}\\'.format(fdir)
 
             T.mk_dir(outdir, force=True)
             for f in tqdm(sorted(os.listdir(fdir_all+fdir)),desc='loading...'):
@@ -1458,8 +1461,9 @@ class process_LAI():
     def run(self):
 
         # self.data_transform()
-        self.extraction_variables_static_during_daily()
-        self.extraction_variables_static_during_monthly()
+        # self.extraction_variables_static_during_daily()
+        # self.extraction_variables_static_during_monthly()
+        self.extraction_variables_static_during_monthly_TRENDY_SM()
         # self.average_all_trendy()
 
 
@@ -1695,15 +1699,94 @@ class process_LAI():
                 # plt.show()
                 np.save(outdir + 'during_{}_{}'.format(period, variable), dic_during_variables)  # 修改
 
+    def extraction_variables_static_during_monthly_TRENDY_SM(self):  # 提取TRENDY SM
+
+
+        fdir_all=data_root+rf'Trendy_SM\DIC\\'
+
+        for fdir in os.listdir(fdir_all):
+            phenology_df = T.load_df(data_root + 'pick_monthly_phenology\MCD/pick_monthly_phenology.df')
+
+
+
+            dic_variables = {}
+
+            # 加载变量数据
+            dic_variables=T.load_npy_dir(fdir_all+fdir)
+            period_list=['early','peak','late','early_peak',]
+
+
+            for period in period_list:
+                dic_during_variables = DIC_and_TIF().void_spatial_dic()
+                outdir = result_root + rf'extraction_Trendy_SM/{fdir}/'
+
+                Tools().mk_dir(outdir, True)
+                dic_period = T.df_to_spatial_dic(phenology_df, period)
+
+                dic_spatial_count = {}
+                spatial_dic = {}
+                for pix in tqdm(dic_variables):
+                    r, c = pix
+                    if r > 120:
+                        continue
+
+                    if pix not in dic_period:
+                        continue
+                    picked_daily = dic_period[pix]  # 修改这里
+                    print(picked_daily)
+                    if np.nanmean(picked_daily) == 0:
+                        continue
+                    ## if nan continue
+
+                    # r,c=pix
+                    # if c>180:
+                    #     continue
+
+                    time_series = dic_variables[pix]
+
+                    time_series_reshape = time_series.reshape((len(time_series) // 12, 12))
+                    # if len(time_series_reshape) != 20:
+                    #     continue
+
+
+                    picked_daily = np.array(picked_daily, dtype=int)
+                    # print(len(time_series))
+                    # print(len(time_series_reshape))
+
+
+                    for year in range(len(time_series_reshape)):
+
+                        during_time_series = time_series_reshape[year][picked_daily-1]
+                        # print(picked_month)#!!!!!
+
+                        during_time_series = np.array(during_time_series, dtype=float)
+
+                        during_time_series[during_time_series < -99.] = np.nan
+
+                        # if np.isnan(np.nanmean(during_time_series)):  # 修改
+                        #     continue
+
+                        # variable_sum = np.nansum(during_time_series)
+                        # dic_during_variables[pix].append(variable_sum)
+                        variable_mean = np.nanmean(during_time_series)  # !!! 降雨需要是sum  # 其他变量是平均值 nanmean
+                        dic_during_variables[pix].append(variable_mean)
+
+                    dic_spatial_count[pix] = len(dic_during_variables[pix])
+                arr = DIC_and_TIF().pix_dic_to_spatial_arr(dic_spatial_count)
+                # plt.imshow(arr, cmap='jet')
+                # plt.colorbar()
+                # plt.title('')
+                # plt.show()
+                np.save(outdir + 'during_{}_{}'.format(period, fdir), dic_during_variables)  # 修改
 
 class statistic_analysis():
     def __init__(self):
         pass
     def run(self):
         # self.trend_analysis()
-        # self.detrend_zscore()
+        self.detrend_zscore()
         # self.detrend_zscore_monthly()
-        self.zscore()
+        # self.zscore()
 
 
     def trend_analysis(self):
@@ -1788,15 +1871,19 @@ class statistic_analysis():
                           'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',''
                            'LPX-Bern_S2_lai', 'VISIT_S2_lai', 'YIBs_S2_Monthly_lai','Trendy_ensemble']
 
+        product_list=  ['CABLE-POP_S2_mrso', 'CLASSIC_S2_mrso',  'CLM5', 'IBIS_S2_mrso',
+                          'ISAM_S2_mrso', 'ISBA-CTRIP_S2_mrso', 'JSBACH_S2_mrso',''
+                           'LPX-Bern_S2_mrso', 'VISIT_S2_mrso', ]
 
-        for period in ['early', 'peak', 'late', 'early_peak', 'early_peak_late']:
+
+        for period in ['early', 'peak', 'late', 'early_peak', ]:
 
             for product in product_list:
-                outdir = result_root + rf'detrend_zscore\{period}\\'
+                outdir = result_root + rf'detrend_zscore\Trendy_SM\\{period}\\'
                 outf=outdir+product+'.npy'
                 # print(outf)
                 # exit()
-                f = result_root + rf'extraction_original_val\LAI\{product}\\during_{period}_{product}.npy'
+                f = result_root + rf'extraction_Trendy_SM\{product}\\during_{period}_{product}.npy'
 
                 Tools().mk_dir(outdir,force=True)
                 dic = {}
@@ -2020,20 +2107,20 @@ class frequency_analysis():
 
         ### 1.create frequency dataframe
 
-        df=self.pick_greening_year_frequency_heatmap()
+        # df=self.pick_greening_year_frequency_heatmap()
 
         ## 2. add landcover and trend, row, and some attributes
 
         # call the function in the class of 'build_dataframe'
 
-        ## 3. plot frequency heatmap
+        # 3. plot frequency heatmap
 
         df, dff = self.__load_df()
         df_clean = self.clean_df(df)
         self.frenquency_heatmap(df_clean)
 
         ## 4. plot frequency bar
-        self.frenquency_heatmap_bar(df_clean)
+        # self.frenquency_heatmap_bar(df_clean)
 
 
         pass
@@ -3215,11 +3302,11 @@ class build_dataframe():
 
     def __init__(self):
 
-        self.this_class_arr = result_root + 'Data_frame\Frequency\MCD\\'
+        self.this_class_arr = result_root + 'Data_frame\detrend_zscore_new\\'
         # self.this_class_arr = result_root + rf'Data_frame\Frequency\Trendy_ensemble\\'
 
         Tools().mk_dir(self.this_class_arr, force=True)
-        self.dff = self.this_class_arr + 'frequency_dataframe_2012_2021.df'
+        self.dff = self.this_class_arr + 'detrend_zscore_new.df'
         self.P_PET_fdir = data_root+rf'\Base_data\aridity_P_PET_dic\\'
         pass
 
@@ -3237,13 +3324,14 @@ class build_dataframe():
         #
         # df = self.add_GLC_landcover_data_to_df(df)
         #
-        P_PET_dic = self.P_PET_ratio(self.P_PET_fdir)
-        P_PET_reclass_dic = self.P_PET_reclass_2(P_PET_dic)
-        df = T.add_spatial_dic_to_df(df, P_PET_reclass_dic, 'HI_class')
+        # P_PET_dic = self.P_PET_ratio(self.P_PET_fdir)
+        # P_PET_reclass_dic = self.P_PET_reclass_2(P_PET_dic)
+        # df = T.add_spatial_dic_to_df(df, P_PET_reclass_dic, 'HI_class')
 
-        # df=self.__rename_dataframe_columns(df)
+
         # df=self.show_field(df)
         # df = self.drop_field_df(df)
+        df=self.rename_dataframe_columns(df)
 
         T.save_df(df, self.dff)
         self.__df_to_excel(df, self.dff)
@@ -3329,16 +3417,20 @@ class build_dataframe():
         period_list = ['early', 'peak', 'late','early_peak']
         for period in period_list:
 
-            fdir=result_root + rf'detrend_zscore\LAI\{period}\\'
+
+            fdir=result_root + rf'detrend_zscore\Trendy_SM\{period}\\'
 
             for f in os.listdir(fdir):
+
 
                 if not f.endswith('npy'):
                     continue
 
                 NDVI_dic = T.load_npy(fdir+f)
+
                 f_name = fdir.split('\\')[-3]+'_'+f.split('\\')[-1].split('.')[0]
                 print(f_name)
+
                 NDVI_list = []
                 for i, row in tqdm(df.iterrows(), total=len(df)):
                     year = row['year']
@@ -3349,10 +3441,13 @@ class build_dataframe():
                         continue
 
                     vals = NDVI_dic[pix]
-                    print(len(vals))
-                    # if len(vals) != 20:
-                    #     NDVI_list.append(np.nan)
-                    #     continue
+                    # print(len(vals))
+                    ## nanmean
+                    vals = np.array(vals)
+                    vals[vals < -999] = np.nan
+                    if np.isnan(np.nanmean(vals)):
+                        NDVI_list.append(np.nan)
+                        continue
                     try:
                         v1 = vals[year - 2003]
                         NDVI_list.append(v1)
@@ -3521,6 +3616,20 @@ class build_dataframe():
                 # label = 2
             dic_reclass[pix] = label
         return dic_reclass
+    def show_field(self,df):
+        for col in df.columns:
+            print(col)
+        return df
+
+        pass
+
+    def rename_dataframe_columns(self,df):
+        df.rename(columns={'late_LPX-Bern_S2_lai': 'late_LPX_Bern_S2_lai',
+
+
+
+                          }, inplace=True)
+        return df
 class plot_dataframe():
 
     def __init__(self):
@@ -4070,7 +4179,8 @@ class SEM_wen:
 
     def run(self):
         df, dff = self.__load_df()
-        des=self.model_description_not_detrend()
+        des=self.model_description_not_detrend_new()
+
         df_clean=self.clean_df(df)
         self.SEM_model(df_clean,des)
         pass
@@ -4083,8 +4193,8 @@ class SEM_wen:
         # return df_early,dff
     def clean_df(self,df):
         df = df[df['row'] < 120]
-        df = df[df['HI_class'] == 'Humid']
-        # df = df[df['HI_class'] == 'Dryland']
+        # df = df[df['HI_class'] == 'Humid']
+        df = df[df['HI_class'] == 'Dryland']
         df = df[df['max_trend'] < 10]
         df=df[df['early_peak_MCD']>0]
         # df = df[df['detrend_late_MODIS_LAI_zscore'] > 0]
@@ -4095,59 +4205,152 @@ class SEM_wen:
 
     def model_description_not_detrend(self):
 
-        # desc_energy_limited = '''
-        #                     # regressions
-        #
-        #                     early_peak_MCD~early_Temp+early_precip
-        #
-        #                     peak_SMroot~  early_peak_MCD+peak_precip
-        #
-        #                     late_MCD ~ peak_SMroot + late_Temp
-        #
-        #                     # residual correlations
-        #                      early_peak_MCD~~early_peak_MCD
-        #                         peak_SMroot~~peak_SMroot
-        #                         late_MCD~~late_MCD
-        #
-        #                         early_peak_MCD~~early_Temp
-        #                         early_peak_MCD~~early_precip
-        #                         peak_SMroot~~early_peak_MCD
-        #                         peak_SMroot~~peak_precip
-        #                         late_MCD~~peak_SMroot
-        #                         late_MCD~~late_Temp
-        #
-        #                     '''
+        desc_water_limited_SMroot = '''
+                            # regressions
 
-   ###### test
-        desc_energy_limited = '''
                             early_peak_MCD~early_Temp+early_precip
 
-                            peak_SMsurf~  early_peak_MCD
-                            peak_SMsurf~  peak_precip
+                            peak_SMroot~  early_peak_MCD+peak_precip
 
-                            late_MCD ~ peak_SMsurf + peak_Temp+peak_precip
-
-
+                            late_MCD ~ peak_SMroot + late_Temp
+                            late_MCD~peak_precip
+                            
 
                             # residual correlations
-                            early_peak_MCD~~early_peak_MCD
-                            peak_SMsurf~~peak_SMsurf
-                            late_MCD~~late_MCD
+                             early_peak_MCD~~early_peak_MCD
+                                peak_SMroot~~peak_SMroot
+                                late_MCD~~late_MCD
 
-                            early_peak_MCD~~early_Temp
-                            early_peak_MCD~~early_precip
-
-
-                            peak_SMsurf~~early_peak_MCD
-                            peak_SMsurf~~peak_precip
-
-                            late_MCD~~peak_SMsurf
-                            late_MCD~~peak_Temp
-                            late_MCD~~peak_precip
-
+                                early_peak_MCD~~early_Temp
+                                early_peak_MCD~~early_precip
+                                peak_SMroot~~early_peak_MCD
+                                peak_SMroot~~peak_precip
+                                late_MCD~~peak_SMroot
+                                late_MCD~~late_Temp
+                                late_MCD~~peak_precip
 
                             '''
 
+        desc_energy_limited_SMroot = '''
+                                    # regressions
+
+                                    early_peak_MCD~early_Temp+early_precip
+
+                                    peak_SMroot~  early_peak_MCD+peak_precip
+
+                                    late_MCD ~ peak_SMroot + late_Temp
+                                    late_MCD~peak_precip
+
+
+                                    # residual correlations
+                                     early_peak_MCD~~early_peak_MCD
+                                        peak_SMroot~~peak_SMroot
+                                        late_MCD~~late_MCD
+
+                                        early_peak_MCD~~early_Temp
+                                        early_peak_MCD~~early_precip
+                                        peak_SMroot~~early_peak_MCD
+                                        peak_SMroot~~peak_precip
+                                        late_MCD~~peak_SMroot
+                                        late_MCD~~late_Temp
+                                        late_MCD~~peak_precip
+
+                                    '''
+
+        return desc_water_limited_SMroot
+
+    def model_description_not_detrend_new(self):
+        desc_energy_limited_SMroot = '''
+                             # regressions
+
+                             early_peak_MCD~early_Temp+early_precip
+
+                             late_SMroot~  early_peak_MCD+peak_Temp+peak_precip
+
+                             late_MCD ~ late_SMroot + late_Temp+late_precip
+                
+                            
+                             # residual correlations
+                              early_peak_MCD~~early_peak_MCD
+                                 late_SMroot~~late_SMroot
+                                 late_MCD~~late_MCD
+
+                                 early_peak_MCD~~early_Temp
+                                 early_peak_MCD~~early_precip
+                                 late_SMroot~~early_peak_MCD
+                                 
+                                 late_MCD~~late_SMroot
+                                 late_SMroot~~peak_Temp
+                                 late_MCD~~late_Temp
+                              
+                                 late_SMroot~~peak_precip
+                                 late_SMroot~~late_Temp
+                                    late_MCD~~late_precip
+                                 
+
+                             '''
+
+        desc_energy_limited_SMroot = '''
+                                     # regressions
+
+                                     early_peak_MCD~early_Temp+early_precip
+
+                                     late_SMroot~  early_peak_MCD+peak_Temp+peak_precip
+
+                                     late_MCD ~ late_SMroot + late_Temp+late_precip
+
+
+
+
+                                     # residual correlations
+                                      early_peak_MCD~~early_peak_MCD
+                                         late_SMroot~~late_SMroot
+                                         late_MCD~~late_MCD
+
+                                         early_peak_MCD~~early_Temp
+                                         early_peak_MCD~~early_precip
+                                         late_SMroot~~early_peak_MCD
+
+                                         late_MCD~~late_SMroot
+                                         late_SMroot~~peak_Temp
+                                         late_MCD~~late_Temp
+
+                                         late_SMroot~~peak_precip
+                                         late_SMroot~~late_Temp
+                                            late_MCD~~late_precip
+
+
+                                     '''
+
+        ###### test
+        # desc_energy_limited = '''
+        #                     early_peak_MCD~early_Temp+early_precip
+        #
+        #                     peak_SMsurf~  early_peak_MCD
+        #                     peak_SMsurf~  peak_precip
+        #
+        #                     late_MCD ~ peak_SMsurf + peak_Temp+peak_precip
+        #
+        #
+        #
+        #                     # residual correlations
+        #                     early_peak_MCD~~early_peak_MCD
+        #                     peak_SMsurf~~peak_SMsurf
+        #                     late_MCD~~late_MCD
+        #
+        #                     early_peak_MCD~~early_Temp
+        #                     early_peak_MCD~~early_precip
+        #
+        #
+        #                     peak_SMsurf~~early_peak_MCD
+        #                     peak_SMsurf~~peak_precip
+        #
+        #                     late_MCD~~peak_SMsurf
+        #                     late_MCD~~peak_Temp
+        #                     late_MCD~~peak_precip
+        #
+        #
+        #                     '''
 
         # desc_water_limited = '''
         #                         # regressions
@@ -4182,10 +4385,38 @@ class SEM_wen:
         #
         #                     '''
 
+        desc_water_limited_SMroot = '''
+                                 # regressions
+
+                             early_peak_MCD~early_Temp+early_precip
+
+                             peak_SMroot~  early_peak_MCD
+                             peak_SMroot~  peak_precip
+
+                             late_MCD ~ peak_SMroot + peak_Temp+peak_precip
 
 
-        return desc_energy_limited
 
+                             # residual correlations
+                             early_peak_MCD~~early_peak_MCD
+                             peak_SMroot~~peak_SMroot
+                             late_MCD~~late_MCD
+
+                             early_peak_MCD~~early_Temp
+                             early_peak_MCD~~early_precip
+
+
+                             peak_SMroot~~early_peak_MCD
+                             peak_SMroot~~peak_precip
+
+                             late_MCD~~peak_SMroot
+                             late_MCD~~peak_Temp
+
+
+
+                             '''
+
+        return desc_energy_limited_SMroot
 
     def SEM_model(self,df,desc):
         mod = semopy.Model(desc)
@@ -4193,7 +4424,149 @@ class SEM_wen:
         # semopy.report(mod, f'SEM_result/{ltd}-{lc}')
         # semopy.report(mod, f'SEM_result/{ltd}')
         # outf=self.outdir+'energy_limited'
-        outf = self.outdir + 'early_limited_test'
+        outf = self.outdir + 'water_limited_SMroot_MCD'
+        semopy.report(mod, outf)
+
+class SEM_wen_for_individual_model:
+    def __init__(self):
+
+        # This class is used to calculate the structural equation model
+        self.this_class_arr = result_root + '\Data_frame\detrend_zscore_new\\'
+        self.dff = self.this_class_arr + 'detrend_zscore_new.df'
+        self.outdir= result_root+'SEM/'
+        T.mkdir(self.outdir,force=True)
+
+        pass
+
+    def run(self):
+        df, dff = self.__load_df()
+
+        T.print_head_n(df)
+        # exit()
+        z_val_name_list = ['CABLE_POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5_S2_lai', 'IBIS_S2_lai',
+                           'ISAM_S2_lai', 'ISBA_CTRIP_S2_lai', 'JSBACH_S2_lai',
+                           'LPX_Bern_S2_lai',
+                           'VISIT_S2_lai', ]
+
+
+        for variable in z_val_name_list:
+            df_clean=self.clean_df(df,variable)
+            lai_variable=variable
+            if 'lai' in lai_variable:
+                sm_variable=lai_variable.replace('lai','mrso')
+            else:
+                sm_variable=lai_variable.replace('LAI','mrso')
+
+            print(lai_variable,sm_variable)
+
+            des = self.model_description_not_detrend_Trendy(lai_variable,sm_variable)
+            self.SEM_model(df_clean,des,lai_variable)
+
+
+
+        pass
+
+    def __load_df(self):
+        dff = self.dff
+        df = T.load_df(dff)
+
+        return df, dff
+        # return df_early,dff
+    def clean_df(self,df,variable):
+        df = df[df['row'] < 120]
+        # df = df[df['HI_class'] == 'Humid']
+        df = df[df['HI_class'] == 'Dryland']
+        df = df[df['max_trend'] < 10]
+
+        df = df[df[f'early_peak_{variable}'] > 0]
+
+        df = df[df['landcover_GLC'] != 'Crop']
+
+        return df
+
+
+    def model_description_not_detrend_Trendy(self,lai_variable,sm_variable):
+        desc_energy_limited = f'''
+                            # regressions
+
+
+                             early_peak_{lai_variable}~early_Temp+early_precip
+
+                             late_{sm_variable}~ early_peak_{lai_variable}+peak_Temp+peak_precip
+
+                             late_{lai_variable} ~ late_{sm_variable} + late_Temp+late_precip
+                
+                
+                            
+                             # residual correlations
+                              early_peak_{lai_variable}~~early_peak_{lai_variable}
+                                 late_{sm_variable}~~late_{sm_variable}
+                                 late_{lai_variable}~~late_{lai_variable}
+
+                                 early_peak_{lai_variable}~~early_Temp
+                                 early_peak_{lai_variable}~~early_precip
+                                 late_{sm_variable}~~early_peak_{lai_variable}
+                                 
+                                 late_{lai_variable}~~late_{sm_variable}
+                                 late_{sm_variable}~~peak_Temp
+                                 late_{lai_variable}~~late_Temp
+                              
+                                 late_{sm_variable}~~peak_precip
+                                 late_{sm_variable}~~late_Temp
+                                late_{lai_variable}~~late_precip
+                                 
+
+                             '''
+
+        desc_water_limited = f'''
+                                    # regressions
+
+
+                                     early_peak_{lai_variable}~early_Temp+early_precip
+
+                                     late_{sm_variable}~ early_peak_{lai_variable}+peak_Temp+peak_precip
+
+                                     late_{lai_variable} ~ late_{sm_variable} + late_Temp+late_precip
+
+
+
+
+                                     # residual correlations
+                                      early_peak_{lai_variable}~~early_peak_{lai_variable}
+                                         late_{sm_variable}~~late_{sm_variable}
+                                         late_{lai_variable}~~late_{lai_variable}
+
+                                         early_peak_{lai_variable}~~early_Temp
+                                         early_peak_{lai_variable}~~early_precip
+                                         late_{sm_variable}~~early_peak_{lai_variable}
+
+                                         late_{lai_variable}~~late_{sm_variable}
+                                         late_{sm_variable}~~peak_Temp
+                                         late_{lai_variable}~~late_Temp
+
+                                         late_{sm_variable}~~peak_precip
+                                         late_{sm_variable}~~late_Temp
+                                        late_{lai_variable}~~late_precip
+
+                                     '''
+
+        return desc_water_limited
+
+
+    def SEM_model(self,df,desc,var_name):
+        mod = semopy.Model(desc)
+        res = mod.fit(df)
+        result=mod.inspect()
+        T.print_head_n(result)
+        outf=self.outdir+f'water_limited_{var_name}'
+        T.save_df(result, outf+'.df')
+        T.df_to_excel(result, outf+'.xlsx')
+        # exit()
+        # semopy.report(mod, f'SEM_result/{ltd}-{lc}')
+        # semopy.report(mod, f'SEM_result/{ltd}')
+        # outf=self.outdir+'energy_limited'
+        outf = self.outdir + f'water_limited_{var_name}'
+
         semopy.report(mod, outf)
 
 class anaysize_fluxnet():
@@ -5205,8 +5578,8 @@ class ResponseFunction:  # figure 5 in paper
     def __init__(self):
 
         # This class is used to calculate the structural equation model
-        self.this_class_arr = result_root + '\Data_frame\detrend_zscore\\'
-        self.dff = self.this_class_arr + 'detrend_zscore.df'
+        self.this_class_arr = result_root + '\Data_frame\detrend_zscore_monthly\\'
+        self.dff = self.this_class_arr + 'detrend_zscore_monthly.df'
         self.outdir = result_root + 'response_function/'
         T.mkdir(self.outdir, force=True)
         pass
@@ -5230,7 +5603,8 @@ class ResponseFunction:  # figure 5 in paper
         # df = df[df['HI_class'] == 'Humid']
         # df = df[df['HI_class'] == 'Dryland']
         df = df[df['max_trend'] < 10]
-        df=df[df['early_peak_MCD']>0]
+
+
         # df = df[df['late_MCD'] < 0]
 
         df = df[df['landcover_GLC'] != 'Crop']
@@ -5244,6 +5618,12 @@ class ResponseFunction:  # figure 5 in paper
                           'LPX-Bern_S2_lai', 'DLEM_S2_lai',
                          'VISIT_S2_lai', 'YIBs_S2_Monthly_lai',]
 
+        z_val_name_list = ['MCD','Trendy_ensemble', 'CABLE_POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
+                           'ISAM_S2_LAI', 'ISBA_CTRIP_S2_lai', 'JSBACH_S2_lai',
+                           'LPX-Bern_S2_lai', 'DLEM_S2_lai',
+                           'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
+
+
         regions = ['Humid', 'Dryland']
         cm = 1 / 2.54
 
@@ -5253,8 +5633,9 @@ class ResponseFunction:  # figure 5 in paper
                 plt.figure(figsize=(15 * cm, 7 * cm))
 
                 df_temp = df[df['HI_class'] == region]
-                x_var='peak_SMroot'
-                y_var='peak_Temp'
+                # df = df[df[f'early_peak_{z_val_name}'] > 0]  ### clever!
+                x_var='peak_precip'
+                y_var='late_Temp'
                 z_var=f'late_{z_val_name}'
 
                 x_bins = np.arange(-1.5, 1.6, 0.5)
@@ -5302,13 +5683,16 @@ def main():
     # process_LAI().run()
     # statistic_analysis().run()
     # frequency_analysis().run()
-    frequency_analysis_for_two_period().run()
+    # frequency_analysis_for_two_period().run()
 
     # trends_seasonal_feedback().run()
     # long_term_seasonal_feedbacks_window_anaysis().run()
     # build_dataframe().run()
     # plot_dataframe().run()
     # SEM_wen().run()
+    SEM_wen_for_individual_model().run()
+
+
     # anaysize_fluxnet().run()
     # ResponseFunction().run()
 
