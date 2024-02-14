@@ -4170,9 +4170,9 @@ class SEM_wen:
     def __init__(self):
 
         # This class is used to calculate the structural equation model
-        self.this_class_arr = result_root + '\Data_frame\detrend_zscore_monthly\\'
-        self.dff = self.this_class_arr + 'detrend_zscore_monthly.df'
-        self.outdir= result_root+'SEM/'
+        self.this_class_arr = result_root + '\Data_frame\detrend_zscore_new\\'
+        self.dff = self.this_class_arr + 'detrend_zscore_new.df'
+        self.outdir= result_root+'SEM3//'
         T.mkdir(self.outdir,force=True)
 
         pass
@@ -4197,6 +4197,9 @@ class SEM_wen:
         df = df[df['HI_class'] == 'Dryland']
         df = df[df['max_trend'] < 10]
         df=df[df['early_peak_MCD']>0]
+        ## late <early
+        # df=df[df['late_MCD']>df['early_peak_MCD']] ###
+        # df=df[df['late_MCD']<0]
         # df = df[df['detrend_late_MODIS_LAI_zscore'] > 0]
 
         df = df[df['landcover_GLC'] != 'Crop']
@@ -4260,12 +4263,12 @@ class SEM_wen:
         return desc_water_limited_SMroot
 
     def model_description_not_detrend_new(self):
-        desc_energy_limited_SMroot = '''
+        desc_all_limited_SMroot = '''
                              # regressions
 
                              early_peak_MCD~early_Temp+early_precip
 
-                             late_SMroot~  early_peak_MCD+peak_Temp+peak_precip
+                             late_SMroot~  early_peak_MCD+late_Temp+peak_precip
 
                              late_MCD ~ late_SMroot + late_Temp+late_precip
                 
@@ -4280,151 +4283,34 @@ class SEM_wen:
                                  late_SMroot~~early_peak_MCD
                                  
                                  late_MCD~~late_SMroot
-                                 late_SMroot~~peak_Temp
+                                 late_SMroot~~late_Temp
                                  late_MCD~~late_Temp
                               
                                  late_SMroot~~peak_precip
-                                 late_SMroot~~late_Temp
+                                 
                                     late_MCD~~late_precip
                                  
 
                              '''
 
-        desc_energy_limited_SMroot = '''
-                                     # regressions
-
-                                     early_peak_MCD~early_Temp+early_precip
-
-                                     late_SMroot~  early_peak_MCD+peak_Temp+peak_precip
-
-                                     late_MCD ~ late_SMroot + late_Temp+late_precip
 
 
 
 
-                                     # residual correlations
-                                      early_peak_MCD~~early_peak_MCD
-                                         late_SMroot~~late_SMroot
-                                         late_MCD~~late_MCD
 
-                                         early_peak_MCD~~early_Temp
-                                         early_peak_MCD~~early_precip
-                                         late_SMroot~~early_peak_MCD
-
-                                         late_MCD~~late_SMroot
-                                         late_SMroot~~peak_Temp
-                                         late_MCD~~late_Temp
-
-                                         late_SMroot~~peak_precip
-                                         late_SMroot~~late_Temp
-                                            late_MCD~~late_precip
-
-
-                                     '''
-
-        ###### test
-        # desc_energy_limited = '''
-        #                     early_peak_MCD~early_Temp+early_precip
-        #
-        #                     peak_SMsurf~  early_peak_MCD
-        #                     peak_SMsurf~  peak_precip
-        #
-        #                     late_MCD ~ peak_SMsurf + peak_Temp+peak_precip
-        #
-        #
-        #
-        #                     # residual correlations
-        #                     early_peak_MCD~~early_peak_MCD
-        #                     peak_SMsurf~~peak_SMsurf
-        #                     late_MCD~~late_MCD
-        #
-        #                     early_peak_MCD~~early_Temp
-        #                     early_peak_MCD~~early_precip
-        #
-        #
-        #                     peak_SMsurf~~early_peak_MCD
-        #                     peak_SMsurf~~peak_precip
-        #
-        #                     late_MCD~~peak_SMsurf
-        #                     late_MCD~~peak_Temp
-        #                     late_MCD~~peak_precip
-        #
-        #
-        #                     '''
-
-        # desc_water_limited = '''
-        #                         # regressions
-        #
-        #                     early_peak_MCD~early_Temp+early_precip
-        #
-        #                     peak_SMsurf~  early_peak_MCD
-        #                     peak_SMsurf~  peak_precip
-        #
-        #                     late_MCD ~ peak_SMsurf + peak_Temp+peak_precip
-        #
-        #
-        #
-        #                     # residual correlations
-        #                     early_peak_MCD~~early_peak_MCD
-        #                     peak_SMsurf~~peak_SMsurf
-        #                     late_MCD~~late_MCD
-        #
-        #                     early_peak_MCD~~early_Temp
-        #                     early_peak_MCD~~early_precip
-        #
-        #
-        #                     peak_SMsurf~~early_peak_MCD
-        #                     peak_SMsurf~~peak_precip
-        #
-        #                     late_MCD~~peak_SMsurf
-        #                     late_MCD~~peak_Temp
-        #
-        #
-        #
-        #
-        #
-        #                     '''
-
-        desc_water_limited_SMroot = '''
-                                 # regressions
-
-                             early_peak_MCD~early_Temp+early_precip
-
-                             peak_SMroot~  early_peak_MCD
-                             peak_SMroot~  peak_precip
-
-                             late_MCD ~ peak_SMroot + peak_Temp+peak_precip
-
-
-
-                             # residual correlations
-                             early_peak_MCD~~early_peak_MCD
-                             peak_SMroot~~peak_SMroot
-                             late_MCD~~late_MCD
-
-                             early_peak_MCD~~early_Temp
-                             early_peak_MCD~~early_precip
-
-
-                             peak_SMroot~~early_peak_MCD
-                             peak_SMroot~~peak_precip
-
-                             late_MCD~~peak_SMroot
-                             late_MCD~~peak_Temp
-
-
-
-                             '''
-
-        return desc_energy_limited_SMroot
+        return desc_all_limited_SMroot
 
     def SEM_model(self,df,desc):
         mod = semopy.Model(desc)
         res = mod.fit(df)
-        # semopy.report(mod, f'SEM_result/{ltd}-{lc}')
-        # semopy.report(mod, f'SEM_result/{ltd}')
-        # outf=self.outdir+'energy_limited'
-        outf = self.outdir + 'water_limited_SMroot_MCD'
+
+        result = mod.inspect()
+        T.print_head_n(result)
+        outf = self.outdir + f'water_limited_MCD'
+        T.save_df(result, outf + '.df')
+        T.df_to_excel(result, outf + '.xlsx')
+
+        outf = self.outdir + 'water_limited_MCD'
         semopy.report(mod, outf)
 
 class SEM_wen_for_individual_model:
@@ -4433,7 +4319,7 @@ class SEM_wen_for_individual_model:
         # This class is used to calculate the structural equation model
         self.this_class_arr = result_root + '\Data_frame\detrend_zscore_new\\'
         self.dff = self.this_class_arr + 'detrend_zscore_new.df'
-        self.outdir= result_root+'SEM/'
+        self.outdir= result_root+'SEM3//'
         T.mkdir(self.outdir,force=True)
 
         pass
@@ -4474,11 +4360,15 @@ class SEM_wen_for_individual_model:
         # return df_early,dff
     def clean_df(self,df,variable):
         df = df[df['row'] < 120]
-        # df = df[df['HI_class'] == 'Humid']
-        df = df[df['HI_class'] == 'Dryland']
+        df = df[df['HI_class'] == 'Humid']
+        # df = df[df['HI_class'] == 'Dryland']
         df = df[df['max_trend'] < 10]
 
         df = df[df[f'early_peak_{variable}'] > 0]
+        # df = df[df[f'late_{variable}']<0]
+        ## late early
+        # df=df[df[f'late_{variable}']>df[f'early_peak_{variable}']]
+
 
         df = df[df['landcover_GLC'] != 'Crop']
 
@@ -4492,7 +4382,7 @@ class SEM_wen_for_individual_model:
 
                              early_peak_{lai_variable}~early_Temp+early_precip
 
-                             late_{sm_variable}~ early_peak_{lai_variable}+peak_Temp+peak_precip
+                             late_{sm_variable}~ early_peak_{lai_variable}+late_Temp+peak_precip
 
                              late_{lai_variable} ~ late_{sm_variable} + late_Temp+late_precip
                 
@@ -4508,11 +4398,11 @@ class SEM_wen_for_individual_model:
                                  late_{sm_variable}~~early_peak_{lai_variable}
                                  
                                  late_{lai_variable}~~late_{sm_variable}
-                                 late_{sm_variable}~~peak_Temp
+                                 late_{sm_variable}~~late_Temp
                                  late_{lai_variable}~~late_Temp
                               
                                  late_{sm_variable}~~peak_precip
-                                 late_{sm_variable}~~late_Temp
+                                
                                 late_{lai_variable}~~late_precip
                                  
 
@@ -4524,7 +4414,7 @@ class SEM_wen_for_individual_model:
 
                                      early_peak_{lai_variable}~early_Temp+early_precip
 
-                                     late_{sm_variable}~ early_peak_{lai_variable}+peak_Temp+peak_precip
+                                     late_{sm_variable}~ early_peak_{lai_variable}+late_Temp+peak_precip
 
                                      late_{lai_variable} ~ late_{sm_variable} + late_Temp+late_precip
 
@@ -4541,11 +4431,11 @@ class SEM_wen_for_individual_model:
                                          late_{sm_variable}~~early_peak_{lai_variable}
 
                                          late_{lai_variable}~~late_{sm_variable}
-                                         late_{sm_variable}~~peak_Temp
+                                         late_{sm_variable}~~late_Temp
                                          late_{lai_variable}~~late_Temp
 
                                          late_{sm_variable}~~peak_precip
-                                         late_{sm_variable}~~late_Temp
+                                        
                                         late_{lai_variable}~~late_precip
 
                                      '''
@@ -4558,16 +4448,184 @@ class SEM_wen_for_individual_model:
         res = mod.fit(df)
         result=mod.inspect()
         T.print_head_n(result)
-        outf=self.outdir+f'water_limited_{var_name}'
+        outf=self.outdir+f'energy_limited_{var_name}'
         T.save_df(result, outf+'.df')
         T.df_to_excel(result, outf+'.xlsx')
         # exit()
         # semopy.report(mod, f'SEM_result/{ltd}-{lc}')
         # semopy.report(mod, f'SEM_result/{ltd}')
         # outf=self.outdir+'energy_limited'
-        outf = self.outdir + f'water_limited_{var_name}'
+        outf = self.outdir + f'energy_limited_{var_name}'
 
         semopy.report(mod, outf)
+class SEM_anaysis():  #### statistical SEM results for different pathways
+    def __init__(self):
+        self.this_class_arr = result_root + 'SEM3\\'
+        T.mk_dir(self.this_class_arr, force=1)
+
+
+
+        pass
+    def run(self):
+        self.SEM_process_comparision()
+
+        pass
+
+
+    def SEM_process_comparision(self):
+        fdir = join(self.this_class_arr, 'df_model')
+        # region = 'water_limited'
+        region = 'water_limited'
+        val_list = []
+        result_dict = {}
+        for f in T.listdir(fdir):
+            if not f.endswith('.df'):
+                continue
+            if not f.startswith(region):
+                continue
+            # print(f)
+            model = f.split('.')[0].replace(region + '_', '').replace('_lai', '')
+            path_list_l = self.path_list_left(model)
+            path_list_r = self.path_list_right(model)
+            dff = join(fdir, f)
+            df = T.load_df(dff)
+            df = df[df['op'] != '~~']
+            for i in range(len(path_list_l)):
+                lv = path_list_l[i]
+                rv = path_list_r[i]
+
+                df_l = df[df['lval'] == lv]
+                df_r = df_l[df_l['rval'] == rv]
+                if len(df_r) != 1:
+                    print(len(df_r))
+                    raise ValueError
+                Estimate = df_r['Estimate'].values[0]
+                # print(Estimate)
+                lv = lv.replace(model + '_', '')
+                rv = rv.replace(model + '_', '')
+                key = f'{rv}--->{lv}'
+                if not key in result_dict:
+                    result_dict[key] = {}
+                result_dict[key][model] = Estimate
+                # result_dict[key] = Estimate
+        df_result = T.dic_to_df(result_dict, 'path')
+        T.print_head_n(df_result)
+        obs_SEM_result = self.obs_SEM(region)
+        path = df_result['path']
+        boxes = []
+        x_lable = []
+        for p in path:
+            df_p = df_result[df_result['path'] == p]
+            vals = df_p.values[0]
+            vals_i_list = []
+            for v in vals:
+                if type(v) == float:
+                    vals_i_list.append(v)
+            boxes.append(vals_i_list)
+            x_lable.append(p)
+        # x_lable_obs = obs_SEM_result.keys()
+        # x_lable_obs = list(x_lable_obs)
+        vals_obs = [obs_SEM_result[x] for x in x_lable]
+        plt.boxplot(boxes, labels=x_lable, showfliers=False, vert=False, positions=range(len(x_lable)))
+        plt.scatter(vals_obs, x_lable, marker='*', color='r', s=100)
+        plt.title(region)
+        plt.tight_layout()
+        plt.show()
+
+    def obs_SEM(self, region):
+        fdir = join(self.this_class_arr, 'df_obs')
+        # region = 'water_limited'
+        fpath = join(fdir, f'{region}_MCD.df')
+        df = T.load_df(fpath)
+        df = df[df['op'] == '~']
+        path_list = []
+        T.print_head_n(df)
+        results_dict = {}
+        for i, row in df.iterrows():
+            lv = row['lval']
+            rv = row['rval']
+            # print(lv, rv)
+            lv = lv.replace('MCD', 'lai')
+            rv = rv.replace('MCD', 'lai')
+
+            lv = lv.replace('SMroot', 'mrso')
+            rv = rv.replace('SMroot', 'mrso')
+            label = f'{rv}--->{lv}'
+            # path_list.append(f'{rv}--->{lv}')
+            val = row['Estimate']
+            results_dict[label] = val
+        return results_dict
+
+    def path_list_left(self, model):
+        path_list = [
+            f'early_peak_{model}_lai',
+            f'early_peak_{model}_lai',
+
+            f'late_{model}_mrso',
+            f'late_{model}_mrso',
+
+
+            f'late_{model}_lai',
+            f'late_{model}_lai',
+            f'late_{model}_lai',
+        ]
+        return path_list
+
+    def path_list_right(self,model):
+        path_list = [
+            'early_Temp',
+            'early_precip',
+
+            f'early_peak_{model}_lai',
+            'peak_precip',
+
+            f'late_{model}_mrso',
+            'late_Temp',
+            'late_precip',
+        ]
+        return path_list
+
+    def boxplot(self):
+        f=result_root+'Data_frame\detrend_zscore_new\\detrend_zscore_new.df'
+        df=T.load_df(f)
+        df = df[df['row'] < 120]
+        T.print_head_n(df)
+
+        # print(T.get_df_unique_val_list(df,'HI_class'))
+        # exit()
+        # df = df[df['HI_class'] == 'Dryland']
+        df = df[df['HI_class'] == 'Humid']
+        df = df[df['max_trend'] < 10]
+        df = df[df['early_peak_MCD'] > 0]
+        df = df[df['landcover_GLC'] != 'Crop']
+
+        SM_list=['CABLE_POP_S2_mrso', 'CLASSIC_S2_mrso', 'CLM5_S2_mrso', 'IBIS_S2_mrso',
+                             'ISAM_S2_mrso', 'ISBA_CTRIP_S2_mrso', 'JSBACH_S2_mrso',
+                            'LPX_Bern_S2_mrso',
+                            'VISIT_S2_mrso', ]
+        plt.figure()
+        ## plot boxplot for different SM
+        boxlist=[]
+        for SM in SM_list:
+            vals=df[f'late_{SM}'].to_list()
+            vals=T.remove_np_nan(vals)
+            boxlist.append(vals)
+        plt.boxplot(boxlist,labels=SM_list)
+
+
+
+        print(df['late_SMroot'].values)
+        average_SMroot=np.nanmean(df['late_SMroot'].values)
+        plt.scatter(1,average_SMroot,c='r',label='SMroot')
+        plt.legend()
+        plt.show()
+
+
+        pass
+
+
+
+
 
 class anaysize_fluxnet():
     def __init__(self):
@@ -5690,8 +5748,8 @@ def main():
     # build_dataframe().run()
     # plot_dataframe().run()
     # SEM_wen().run()
-    SEM_wen_for_individual_model().run()
-
+    # SEM_wen_for_individual_model().run()
+    SEM_anaysis().run()
 
     # anaysize_fluxnet().run()
     # ResponseFunction().run()
