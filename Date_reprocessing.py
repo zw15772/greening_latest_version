@@ -2623,7 +2623,7 @@ class frequency_analysis_for_two_period():  ## calculated
             plt.show()
         # T.open_path_and_file(outdir)
 
-class trends_seasonal_feedback():
+class trends_seasonal_feedback():  ### 暂时不用 之前的最喜欢的图删掉了
     def __init__(self):
         self.product_list = ['CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
                         'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
@@ -3630,7 +3630,7 @@ class build_dataframe():
 
                           }, inplace=True)
         return df
-class plot_dataframe():
+class long_term_trends():   ### early-and peak vs. late and early-peak and late season together
 
     def __init__(self):
 
@@ -3642,7 +3642,8 @@ class plot_dataframe():
     def run(self):
         df = self.__gen_df_init(self.dff)
         # self.zscore_result_statistical_annual(df)
-        self.plot_zscore()
+        self.create_new_df_before_plot()
+        # self.plot_zscore()
 
         pass
     def __gen_df_init(self, file):
@@ -3682,7 +3683,7 @@ class plot_dataframe():
         df = df[df['max_trend'] < 10]
 
         df = df[df['landcover_GLC'] != 'Crop']
-        period_name=['early_peak','late']
+        period_name=['early_peak','late','early_peak_late']
         product_list=['MCD','Trendy_ensemble','CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
                           'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
                           'LPX-Bern_S2_lai',  'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
@@ -3790,10 +3791,12 @@ class plot_dataframe():
 
     pass
 
-    def plot_zscore(self):
+
+    def plot_time_series_zscore(self):  ###plot time series
         f = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\zscore_result_statistical_annual.npy'
         dic = T.load_npy(f)
         period_name = ['early_peak', 'late']
+        period_name = ['early_peak_late']
         product_list = ['MCD', 'Trendy_ensemble', 'CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
                         'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
                         'LPX-Bern_S2_lai', 'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
@@ -3851,8 +3854,196 @@ class plot_dataframe():
                 plt.grid(which='major', alpha=0.5)
                 plt.tight_layout()
                 i = i + 1
+
+
         plt.show()
 
+    def create_new_df_before_plot(self):  ### prepare for plot feedback_vs_trend
+        f_trend = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\zscore_result_statistical_annual.npy'
+        dic_trend = T.load_npy(f_trend)
+        dff=result_root+rf'Data_frame\zscore_result_statistical_annual\temporal_change_TRENDY_individual_statistic\\result.df'
+        df=T.load_df(dff)
+        dff_new = result_root + rf'Data_frame\zscore_result_statistical_annual\temporal_change_TRENDY_individual_statistic\\result_new.df'
+        period_name = ['early_peak', 'late','early_peak_late']
+        product_list = ['MCD', 'Trendy_ensemble', 'CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
+                        'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
+                        'LPX-Bern_S2_lai', 'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
+        # T.rename_dataframe_columns()
+        model_name = df['model'].to_list()
+        new_model_name_list = []
+        for model in model_name:
+            new_model_name = model.replace('Arid-', 'Dryland-')
+            new_model_name_list.append(new_model_name)
+        df = df.drop(columns='model')
+        df['model'] = new_model_name_list
+        # T.print_head_n(df)
+        # exit()
+        dict_result = {}
+
+
+        for region in ['Humid', 'Dryland']:
+
+            for variable in product_list:
+                dict_j = {}
+                new_key = f'{region}-{variable}'
+
+                for period in period_name:
+
+                    key = f'{region}_{period}_{variable}'
+
+                    result_i = dic_trend[key]
+                    k_value = result_i['k_value']
+                    p_value = result_i['p_value']
+                    dict_i = {
+                        f'k_value_{period}': k_value,
+                        f'p_value_{period}': p_value,
+                    }
+                    dict_j.update(dict_i)
+                dict_result[new_key]=dict_j
+
+        df_result = T.dic_to_df(dict_result,'model')
+        # T.print_head_n(df_result)
+        # exit()
+        model_list = df_result['model'].to_list()
+        print(model_list)
+        T.print_head_n(df_result)
+        ###save to df
+        # df = pd.merge(df, df_result, on='model', how='left')
+        # df_merge = pd.DataFrame()
+        df_list = [df_result]
+        print('-------------------')
+        T.print_head_n(df)
+        print('-------------------')
+        T.print_head_n(df_result)
+        df_merge = T.join_df_list(df,df_list,'model')
+        df_merge = df_merge.dropna(how='any')
+        T.print_head_n(df_merge)
+
+        T.save_df(df_merge, dff_new)
+        ##to excel
+        T.df_to_excel(df_merge,dff_new, n=1000, random=False)
+
+
+
+    def frequency_temporal_change_TRENDY_individual_statistic_boxplot(self):
+        fdir = join(self.this_class_arr, 'frequency_temporal_change_TRENDY_individual_statistic')
+        dff = join(fdir, 'result.df')
+        df = T.load_df(dff)
+
+        # T.print_head_n(df)
+        model_list = df['model'].tolist()
+        cols = ['a_amp', 'a_weak_stab', 'a_strong_stab']
+
+        box_list = []
+        label_list = []
+        mcd_list = []
+        ensemble_list = []
+        individual_list = []
+        for AI in ['Arid', 'Humid']:
+            for col in cols:
+                model_list_i = []
+                for model in model_list:
+                    AI_ = model.split('-')[0]
+                    if AI_ == AI:
+                        model_list_i.append(model)
+
+                individual_models = []
+                for model in model_list_i:
+                    if 'MCD' in model:
+                        continue
+                    if 'ensemble' in model:
+                        continue
+                    individual_models.append(model)
+
+                df_i = df[df['model'].isin(model_list_i)]
+                vals = df_i[col].tolist()
+                box_list.append(vals)
+                label_list.append(f'{AI}-{col}')
+                df_mcd = df_i[df_i['model'].str.contains('MCD')]
+                df_ensemble = df_i[df_i['model'].str.contains('ensemble')]
+                df_individual = df_i[df_i['model'].isin(individual_models)]
+                val_mcd = df_mcd[col].tolist()[0]
+                val_ensemble = df_ensemble[col].tolist()[0]
+                vals_individual = df_individual[col].tolist()
+                mcd_list.append(val_mcd)
+                ensemble_list.append(val_ensemble)
+                individual_list.append(vals_individual)
+
+        plt.boxplot(box_list, labels=label_list, showfliers=False, zorder=-1)
+        plt.scatter(np.arange(1, len(mcd_list) + 1), mcd_list, color='red', marker='*', label='MCD', zorder=2, s=70)
+        plt.scatter(np.arange(1, len(ensemble_list) + 1), ensemble_list, color='blue', marker='X', label='ensemble',
+                    zorder=2, s=70)
+        for i in range(len(individual_list)):
+            plt.scatter([i + 1] * len(individual_list[i]), individual_list[i], color='gray', marker='x', zorder=-1)
+        plt.hlines(0, 0.5, len(label_list) + 0.5, color='black', zorder=-3, linestyles='--')
+        plt.legend()
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        plt.show()
+
+        pass
+
+    def plot_feedback_vs_trend(self):
+        f = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\zscore_result_statistical_annual.npy'
+        dic = T.load_npy(f)
+        period_name = ['early_peak', 'late']
+        period_name = ['early_peak_late']
+        product_list = ['MCD', 'Trendy_ensemble', 'CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
+                        'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
+                        'LPX-Bern_S2_lai', 'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
+        color_list = ['green', 'black']
+        color_list.extend('silver' for i in range(len(product_list) - 2))
+        linewidth_list = [2, 2, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
+                          0.5]
+
+        fig = plt.figure()
+        i = 1
+
+        for region in ['Humid', 'Dryland']:
+
+            for period in period_name:
+                ax = fig.add_subplot(2, 2, i)
+
+                flag = 0
+                for variable in product_list:
+
+                    color = color_list[flag]
+                    linewidth = linewidth_list[flag]
+                    if flag >= 2:
+                        zorder = 0
+                    else:
+                        zorder = 1
+
+                    flag += 1
+                    key = f'{region}_{period}_{variable}'
+                    result_i = dic[key]
+                    mean_value_yearly = result_i['mean_value_yearly']
+                    up_list = result_i['up_list']
+                    bottom_list = result_i['bottom_list']
+                    fit_value_yearly = result_i['fit_value_yearly']
+                    k_value = result_i['k_value']
+                    p_value = result_i['p_value']
+                    plt.plot(mean_value_yearly, label=variable, c=color, zorder=zorder, linewidth=linewidth)
+                    plt.plot(fit_value_yearly, linestyle='--', label='k={:0.2f},p={:0.4f}'.format(k_value, p_value),
+                             c=color, linewidth=linewidth)
+                    # print(f'{region}_{variable}','k={:0.2f},p={:0.4f}'.format(k_value, p_value))
+                    plt.fill_between(range(len(mean_value_yearly)), up_list, bottom_list, alpha=0.1, zorder=-1,
+                                     color=color)
+
+                plt.ylabel('zscore')
+                plt.xlabel('year')
+                major_xticks = np.arange(0, 20, 5)
+                plt.title(f'{period}_{region}')
+                # major_yticks = np.arange(-10, 15, 5)
+                major_yticks = np.arange(-1.1, 1.1, 0.2)
+                # major_ticks = np.arange(0, 40, 5)  ### 根据数据长度修改这里
+                ax.set_xticks(major_xticks)
+                ax.set_yticks(major_yticks)
+                plt.grid(which='major', alpha=0.5)
+                plt.tight_layout()
+                i = i + 1
+
+        plt.show()
 
     pass
 class build_dataframe_window_anaysis():
@@ -3867,14 +4058,7 @@ class build_dataframe_window_anaysis():
 
 
 
-    def __init__(self):
 
-        self.this_class_arr = result_root + 'Data_frame\detrend_zscore_monthly\\'
-
-        Tools().mk_dir(self.this_class_arr, force=True)
-        self.dff = self.this_class_arr + 'detrend_zscore_monthly.df'
-        self.P_PET_fdir = rf'C:\Users\pcadmin\Desktop\Data\Base_data\aridity_P_PET_dic\\'
-        pass
 
     def run(self):
 
@@ -4467,17 +4651,25 @@ class SEM_anaysis():  #### statistical SEM results for different pathways
 
         pass
     def run(self):
-        self.SEM_process_comparision()
+        # self.SEM_process_comparision()
+        self.model_performance()
 
         pass
 
 
     def SEM_process_comparision(self):
+        marker_list = ['o', 's', 'D', 'v', 'p', 'P', '^', 'X', 'd']
+        # color_list=['g','b','y','c','m','k','orange','purple','brown']
+        color_list = T.gen_colors(9)
+
         fdir = join(self.this_class_arr, 'df_model')
         # region = 'water_limited'
         region = 'water_limited'
         val_list = []
         result_dict = {}
+
+        ax=plt.subplot(111)
+
         for f in T.listdir(fdir):
             if not f.endswith('.df'):
                 continue
@@ -4490,12 +4682,15 @@ class SEM_anaysis():  #### statistical SEM results for different pathways
             dff = join(fdir, f)
             df = T.load_df(dff)
             df = df[df['op'] != '~~']
+
             for i in range(len(path_list_l)):
                 lv = path_list_l[i]
                 rv = path_list_r[i]
 
                 df_l = df[df['lval'] == lv]
                 df_r = df_l[df_l['rval'] == rv]
+                print (df_r)
+
                 if len(df_r) != 1:
                     print(len(df_r))
                     raise ValueError
@@ -4509,26 +4704,45 @@ class SEM_anaysis():  #### statistical SEM results for different pathways
                 result_dict[key][model] = Estimate
                 # result_dict[key] = Estimate
         df_result = T.dic_to_df(result_dict, 'path')
+        print(df_result)
         T.print_head_n(df_result)
         obs_SEM_result = self.obs_SEM(region)
         path = df_result['path']
         boxes = []
         x_lable = []
+
         for p in path:
+            flag = 0
             df_p = df_result[df_result['path'] == p]
+
             vals = df_p.values[0]
             vals_i_list = []
             for v in vals:
                 if type(v) == float:
                     vals_i_list.append(v)
+
+                    print(flag)
+
+                    print(df_p.columns)
+                    model_name = df_p.columns[flag+1]
+                    plt.scatter(v,p, marker=marker_list[flag], color=color_list[flag], s=30,zorder=5,linewidths=0.5,edgecolors='k',label=model_name)
+                    flag+=1
             boxes.append(vals_i_list)
             x_lable.append(p)
+            # plt.scatter(vals_i_list, [p for i in range(len(vals_i_list))], marker=marker_list[flag], color=color_list[flag], s=50)
         # x_lable_obs = obs_SEM_result.keys()
+
         # x_lable_obs = list(x_lable_obs)
+
         vals_obs = [obs_SEM_result[x] for x in x_lable]
-        plt.boxplot(boxes, labels=x_lable, showfliers=False, vert=False, positions=range(len(x_lable)))
-        plt.scatter(vals_obs, x_lable, marker='*', color='r', s=100)
+        plt.boxplot(boxes, labels=x_lable, showfliers=False, vert=False, positions=range(len(x_lable)),zorder=100,patch_artist=True,boxprops=dict(facecolor='none', color='k'),whiskerprops=dict(color='black'),medianprops=dict(color='black'))
+
+        plt.scatter(vals_obs, x_lable, marker='*', color='r', s=100,zorder=10)
+        ### reverse the y axis
+        plt.gca().invert_yaxis()
         plt.title(region)
+        # plt.legend()
+
         plt.tight_layout()
         plt.show()
 
@@ -4563,6 +4777,7 @@ class SEM_anaysis():  #### statistical SEM results for different pathways
 
             f'late_{model}_mrso',
             f'late_{model}_mrso',
+            f'late_{model}_mrso',
 
 
             f'late_{model}_lai',
@@ -4578,6 +4793,7 @@ class SEM_anaysis():  #### statistical SEM results for different pathways
 
             f'early_peak_{model}_lai',
             'peak_precip',
+            'late_Temp',
 
             f'late_{model}_mrso',
             'late_Temp',
@@ -4585,40 +4801,48 @@ class SEM_anaysis():  #### statistical SEM results for different pathways
         ]
         return path_list
 
-    def boxplot(self):
-        f=result_root+'Data_frame\detrend_zscore_new\\detrend_zscore_new.df'
-        df=T.load_df(f)
-        df = df[df['row'] < 120]
+    def model_performance(self):
+        fig = plt.figure(figsize=(10, 5))
+        xlsx = result_root + 'SEM3\model_performance_energy_limited.xlsx'
+        df = pd.read_excel(xlsx)
         T.print_head_n(df)
+        attriute_list = ['RMSE', 'GFI', 'AGFI', ]
+        ### read columns model name and RMSEA
+        flag=1
+        for attribute in attriute_list:
+            ax = fig.add_subplot(1, 3, flag)
 
-        # print(T.get_df_unique_val_list(df,'HI_class'))
-        # exit()
-        # df = df[df['HI_class'] == 'Dryland']
-        df = df[df['HI_class'] == 'Humid']
-        df = df[df['max_trend'] < 10]
-        df = df[df['early_peak_MCD'] > 0]
-        df = df[df['landcover_GLC'] != 'Crop']
+            model_list = df['Model_name']
+            RMSEA_list = df[attribute]
+            ## reverse the RMSEA and model name
+            RMSEA_list = RMSEA_list[::-1]
+            model_list = model_list[::-1]
+            RMSEA_list = RMSEA_list.to_list()
+            model_list = model_list.to_list()
+            print(model_list)
+            print(RMSEA_list)
 
-        SM_list=['CABLE_POP_S2_mrso', 'CLASSIC_S2_mrso', 'CLM5_S2_mrso', 'IBIS_S2_mrso',
-                             'ISAM_S2_mrso', 'ISBA_CTRIP_S2_mrso', 'JSBACH_S2_mrso',
-                            'LPX_Bern_S2_mrso',
-                            'VISIT_S2_mrso', ]
-        plt.figure()
-        ## plot boxplot for different SM
-        boxlist=[]
-        for SM in SM_list:
-            vals=df[f'late_{SM}'].to_list()
-            vals=T.remove_np_nan(vals)
-            boxlist.append(vals)
-        plt.boxplot(boxlist,labels=SM_list)
+            ## add a line to show the threshold of MODIS
+            ## get MODIS RMSEA
+            modis_RMSEA = df[df['Model_name'] == 'MODIS'][attribute].values[0]
+            print(modis_RMSEA)
+            ## plot all attribute
 
+            ax.bar(range(len(model_list)), RMSEA_list, color='b', label=attribute)
+            ax.axhline(y=modis_RMSEA, color='r', linestyle='--', label='MODIS')
+            ax.set_xticks(range(len(model_list)))
+            ax.set_xticklabels(model_list, rotation=45)
+            ax.set_ylabel(attribute)
+            ax.set_xlabel('Model')
+            ax.legend()
 
-
-        print(df['late_SMroot'].values)
-        average_SMroot=np.nanmean(df['late_SMroot'].values)
-        plt.scatter(1,average_SMroot,c='r',label='SMroot')
-        plt.legend()
+            flag=flag+1
+        plt.tight_layout()
         plt.show()
+
+
+
+
 
 
         pass
@@ -5746,10 +5970,10 @@ def main():
     # trends_seasonal_feedback().run()
     # long_term_seasonal_feedbacks_window_anaysis().run()
     # build_dataframe().run()
-    # plot_dataframe().run()
+    long_term_trends().run()
     # SEM_wen().run()
     # SEM_wen_for_individual_model().run()
-    SEM_anaysis().run()
+    # SEM_anaysis().run()
 
     # anaysize_fluxnet().run()
     # ResponseFunction().run()
