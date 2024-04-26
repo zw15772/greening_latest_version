@@ -3642,8 +3642,11 @@ class long_term_trends():   ### early-and peak vs. late and early-peak and late 
     def run(self):
         df = self.__gen_df_init(self.dff)
         # self.zscore_result_statistical_annual(df)
-        self.create_new_df_before_plot()
-        # self.plot_zscore()
+        # self.plot_time_series_zscore()
+        # self.create_new_df_before_plot()
+        self.plot_feedback_vs_trend()
+        # self.barplot()
+
 
         pass
     def __gen_df_init(self, file):
@@ -3716,7 +3719,7 @@ class long_term_trends():   ### early-and peak vs. late and early-peak and late 
                     }
         outdir=result_root+rf'\\Data_frame\zscore_result_statistical_annual\\'
         T.mk_dir(outdir,force=1)
-        outf=outdir+'zscore_result_statistical_annual.npy'
+        outf=outdir+'zscore_result_statistical_annual2.npy'
         T.save_npy(result_dic,outf)
     def plot_calculation(self,df,column_name):
         dic = {}
@@ -3729,7 +3732,7 @@ class long_term_trends():   ### early-and peak vs. late and early-peak and late 
         # year_list.sort()
 
         year_list = []
-        for i in range(2000, 2019):
+        for i in range(2003, 2022):
             year_list.append(i)
         print(year_list)
 
@@ -3793,10 +3796,10 @@ class long_term_trends():   ### early-and peak vs. late and early-peak and late 
 
 
     def plot_time_series_zscore(self):  ###plot time series
-        f = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\zscore_result_statistical_annual.npy'
+        f = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\zscore_result_statistical_annual2.npy'
         dic = T.load_npy(f)
-        period_name = ['early_peak', 'late']
-        period_name = ['early_peak_late']
+        period_name = ['early_peak', 'late', 'early_peak_late']
+
         product_list = ['MCD', 'Trendy_ensemble', 'CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
                         'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
                         'LPX-Bern_S2_lai', 'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
@@ -3811,7 +3814,7 @@ class long_term_trends():   ### early-and peak vs. late and early-peak and late 
         for region in ['Humid', 'Dryland']:
 
             for period in period_name:
-                ax = fig.add_subplot(2, 2, i)
+                ax = fig.add_subplot(2, 3, i)
 
                 flag = 0
                 for variable in product_list:
@@ -3832,12 +3835,23 @@ class long_term_trends():   ### early-and peak vs. late and early-peak and late 
                     fit_value_yearly = result_i['fit_value_yearly']
                     k_value = result_i['k_value']
                     p_value = result_i['p_value']
+                    print(f'{region}_{variable}', 'k={:0.2f},p={:0.4f}'.format(k_value, p_value))
+
                     plt.plot(mean_value_yearly, label=variable, c=color, zorder=zorder, linewidth=linewidth)
                     plt.plot(fit_value_yearly, linestyle='--', label='k={:0.2f},p={:0.4f}'.format(k_value, p_value),
                              c=color, linewidth=linewidth)
                     # print(f'{region}_{variable}','k={:0.2f},p={:0.4f}'.format(k_value, p_value))
                     plt.fill_between(range(len(mean_value_yearly)), up_list, bottom_list, alpha=0.1, zorder=-1,
                                      color=color)
+                    #### show text p value trend only show Trendy_ensemble and MCD
+                    if variable == 'Trendy_ensemble' or variable == 'MCD':
+                        ## position of text
+                        x = 0
+                        y = mean_value_yearly[0]+0.7
+                        plt.text(x, y, 'k={:0.2f},p={:0.4f}'.format(k_value, p_value), fontsize=10, color=color)
+
+
+
 
 
 
@@ -3846,6 +3860,7 @@ class long_term_trends():   ### early-and peak vs. late and early-peak and late 
                 plt.xlabel('year')
                 major_xticks = np.arange(0, 20, 5)
                 plt.title(f'{period}_{region}')
+
                 # major_yticks = np.arange(-10, 15, 5)
                 major_yticks = np.arange(-1.1, 1.1, 0.2)
                 # major_ticks = np.arange(0, 40, 5)  ### 根据数据长度修改这里
@@ -3859,11 +3874,11 @@ class long_term_trends():   ### early-and peak vs. late and early-peak and late 
         plt.show()
 
     def create_new_df_before_plot(self):  ### prepare for plot feedback_vs_trend
-        f_trend = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\zscore_result_statistical_annual.npy'
+        f_trend = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\zscore_result_statistical_annual2.npy'
         dic_trend = T.load_npy(f_trend)
-        dff=result_root+rf'Data_frame\zscore_result_statistical_annual\temporal_change_TRENDY_individual_statistic\\result.df'
+        dff=result_root+rf'Data_frame\zscore_result_statistical_annual\frequency_temporal_change_TRENDY_individual_statistic\\result.df'
         df=T.load_df(dff)
-        dff_new = result_root + rf'Data_frame\zscore_result_statistical_annual\temporal_change_TRENDY_individual_statistic\\result_new.df'
+        dff_new = result_root + rf'Data_frame\zscore_result_statistical_annual\frequency_temporal_change_TRENDY_individual_statistic\\result_new.df'
         period_name = ['early_peak', 'late','early_peak_late']
         product_list = ['MCD', 'Trendy_ensemble', 'CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
                         'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
@@ -3922,6 +3937,7 @@ class long_term_trends():   ### early-and peak vs. late and early-peak and late 
         T.save_df(df_merge, dff_new)
         ##to excel
         T.df_to_excel(df_merge,dff_new, n=1000, random=False)
+
 
 
 
@@ -3984,66 +4000,111 @@ class long_term_trends():   ### early-and peak vs. late and early-peak and late 
         pass
 
     def plot_feedback_vs_trend(self):
-        f = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\zscore_result_statistical_annual.npy'
-        dic = T.load_npy(f)
-        period_name = ['early_peak', 'late']
-        period_name = ['early_peak_late']
-        product_list = ['MCD', 'Trendy_ensemble', 'CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
-                        'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
-                        'LPX-Bern_S2_lai', 'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
-        color_list = ['green', 'black']
-        color_list.extend('silver' for i in range(len(product_list) - 2))
-        linewidth_list = [2, 2, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
-                          0.5]
+        dff=result_root+rf'Data_frame\zscore_result_statistical_annual\frequency_temporal_change_TRENDY_individual_statistic\\result_new.df'
+        df=T.load_df(dff)
+        marker_list = ['*','o', 's', 'D', 'v', 'p', 'P', '^', 'X', 'd', ]
 
-        fig = plt.figure()
-        i = 1
 
-        for region in ['Humid', 'Dryland']:
+        color_list = T.gen_colors(12)
 
-            for period in period_name:
-                ax = fig.add_subplot(2, 2, i)
+        ##plot x =feedback and y = trend
+        periods = ['early_peak_late','late']
+        product_list = ['MCD', 'CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
+            'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
+            'LPX-Bern_S2_lai', 'VISIT_S2_lai',  ]
+        region_list=['Humid','Dryland']
 
-                flag = 0
+        for region in region_list:
+
+            for period in periods:
+                x_list = []
+                y_list = []
+                label_list = []
+                p_value_list = []
+                flag = 1
                 for variable in product_list:
 
-                    color = color_list[flag]
-                    linewidth = linewidth_list[flag]
-                    if flag >= 2:
-                        zorder = 0
-                    else:
-                        zorder = 1
+                    key=f'{region}-{variable}'
+                    df_pick=df[df['model']==key]
+                    y=df_pick[f'k_value_{period}'].to_list()
+                    x=df_pick[f'a_strong_stab'].to_list()
+                    p_value=df_pick[f'p_strong_stab'].to_list()
+                    x_list.append(x)
 
-                    flag += 1
-                    key = f'{region}_{period}_{variable}'
-                    result_i = dic[key]
-                    mean_value_yearly = result_i['mean_value_yearly']
-                    up_list = result_i['up_list']
-                    bottom_list = result_i['bottom_list']
-                    fit_value_yearly = result_i['fit_value_yearly']
-                    k_value = result_i['k_value']
-                    p_value = result_i['p_value']
-                    plt.plot(mean_value_yearly, label=variable, c=color, zorder=zorder, linewidth=linewidth)
-                    plt.plot(fit_value_yearly, linestyle='--', label='k={:0.2f},p={:0.4f}'.format(k_value, p_value),
-                             c=color, linewidth=linewidth)
-                    # print(f'{region}_{variable}','k={:0.2f},p={:0.4f}'.format(k_value, p_value))
-                    plt.fill_between(range(len(mean_value_yearly)), up_list, bottom_list, alpha=0.1, zorder=-1,
-                                     color=color)
+                    y_list.append(y)
+                    p_value_list.append(p_value)
+                    label_list.append(f'{region}-{variable}-{period}')
+                plt.figure()
 
-                plt.ylabel('zscore')
-                plt.xlabel('year')
-                major_xticks = np.arange(0, 20, 5)
-                plt.title(f'{period}_{region}')
-                # major_yticks = np.arange(-10, 15, 5)
-                major_yticks = np.arange(-1.1, 1.1, 0.2)
-                # major_ticks = np.arange(0, 40, 5)  ### 根据数据长度修改这里
-                ax.set_xticks(major_xticks)
-                ax.set_yticks(major_yticks)
-                plt.grid(which='major', alpha=0.5)
-                plt.tight_layout()
-                i = i + 1
+                for i in range(len(x_list)):
+                    x=x_list[i]
+                    y=y_list[i]
+                    label=label_list[i]
+                    p_value=p_value_list[i]
 
-        plt.show()
+                    plt.scatter(x,y,label=label,marker=marker_list[flag],color=color_list[flag])
+                    plt.text(x[0]+0.0005,y[0],f'p={p_value[0]:0.4f}',fontsize=10)
+                    flag+=1
+
+                    plt.tight_layout()
+                plt.title(f'{region}-{period}')
+                plt.xlabel('strong_stabilization_feedback_trend')
+                plt.ylabel('interannual_growing_season_trend')
+                plt.legend()
+                plt.show()
+
+    def barplot(self):
+        dff=result_root+rf'Data_frame\zscore_result_statistical_annual\frequency_temporal_change_TRENDY_individual_statistic\\result_new.df'
+        df=T.load_df(dff)
+        product_list = ['MCD','CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
+            'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
+            'LPX-Bern_S2_lai', 'VISIT_S2_lai',  ]
+        region_list=['Humid','Dryland']
+        for region in region_list:
+            trend_list=[]
+            p_list=[]
+            star_list=[]
+            for variable in product_list:
+
+                key=f'{region}-{variable}'
+                df_pick=df[df['model']==key]
+
+                trend=df_pick[f'a_amp'].to_list()
+                p_value=df_pick[f'p_amp'].to_list()
+                trend_list.append(trend)
+                p_list.append(p_value)
+                if p_value[0]<0.05:
+                    star_list.append('**')
+                else:
+                    star_list.append('')
+            plt.figure()
+
+            for i in range(len(trend_list)):
+                trend=trend_list[i]
+
+
+                variable=product_list[i]
+
+                plt.bar(variable,trend,label=variable)
+
+
+
+            for idx, pval in enumerate(star_list):
+                y_position = trend_list[idx][0]-0.001
+
+                plt.text(x=idx, y=y_position, s=pval, ha='center', va='bottom', fontsize=20, color='black')
+
+            plt.title(region)
+            plt.ylabel('strong_stabilization_trend')
+            plt.xticks(rotation=45)
+
+            # plt.legend()
+            plt.tight_layout()
+            plt.show()
+
+
+
+
 
     pass
 class build_dataframe_window_anaysis():
