@@ -3642,9 +3642,12 @@ class long_term_trends():   ### early-and peak vs. late and early-peak and late 
     def run(self):
         df = self.__gen_df_init(self.dff)
         # self.zscore_result_statistical_annual(df)
-        # self.plot_time_series_zscore()
+        # self.calculate_average(df)
+
+
+        self.plot_time_series_zscore()
         # self.create_new_df_before_plot()
-        self.plot_feedback_vs_trend()
+        # self.plot_feedback_vs_trend()
         # self.barplot()
 
 
@@ -3687,10 +3690,9 @@ class long_term_trends():   ### early-and peak vs. late and early-peak and late 
 
         df = df[df['landcover_GLC'] != 'Crop']
         period_name=['early_peak','late','early_peak_late']
-        product_list=['MCD','Trendy_ensemble','CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
+        product_list=['MCD','CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
                           'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
                           'LPX-Bern_S2_lai',  'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
-
 
         result_dic={}
         for region in ['Humid','Dryland']:
@@ -3706,6 +3708,7 @@ class long_term_trends():   ### early-and peak vs. late and early-peak and late 
                     print(column_name)
 
                     mean_value_yearly,up_list,bottom_list,fit_value_yearly,k_value,p_value=self.plot_calculation(df_pick,column_name)
+
 
                     key=f'{region}_{period}_{variable}'
                     result_dic[key]={
@@ -3793,14 +3796,71 @@ class long_term_trends():   ### early-and peak vs. late and early-peak and late 
         # exit()
 
     pass
+    def calculate_average(self,df):## 实现计算中位数 of individual product
+        import pprint
+        f_individual = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\zscore_result_statistical_annual2.npy'
+        dic_individual = T.load_npy(f_individual)
+        # print(dic_individual)
+        # pprint.pprint(dic_individual)
+        # exit()
+
+
+        product_list = [ 'CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
+                        'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
+                        'LPX-Bern_S2_lai', 'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
+        period_name = ['early_peak', 'late', 'early_peak_late']
+        region_list = ['Humid', 'Dryland']
+        # T.print_head_n(df)
+        # exit()
+        # result_dic = {}
+        for region in region_list:
+            for period in period_name:
+                whole_list = []
+                for product in product_list:
+                    column_name = f'{period}_{product}'
+                    df_pick = df[df['HI_class'] == region]
+
+                    mean_value_yearly, up_list, bottom_list, fit_value_yearly, k_value, p_value = self.plot_calculation(
+                        df_pick, column_name)
+                    whole_list.append(mean_value_yearly)
+                        ## average
+                average_list = np.nanmean(whole_list, axis=0)
+                ## calculate k,p
+                xaxis = range(len(average_list))
+                xaxis = list(xaxis)
+                k_value, b_value, r, p_value = T.nan_line_fit(xaxis, average_list)
+                fit_value_yearly_average = []
+                for year in range(2003, 2022):
+
+                    fit_value_yearly_average.append(k_value * (year - 2003) + b_value)
+
+                dic_individual[f'{region}_{period}_average'] = {
+                    'mean_value_yearly': average_list,
+                    'up_list':[],
+                    'bottom_list': [],
+                    'fit_value_yearly': fit_value_yearly_average,
+                    'k_value': k_value,
+                    'p_value': p_value,}
+                # pprint.pprint(result_dic)
+                # dic_individual.update(result_dic)
+                # exit()
+
+        outdir = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\'
+        T.mk_dir(outdir, force=1)
+        outf = outdir + 'zscore_result_statistical_annual_average_new.npy'
+        T.save_npy(dic_individual, outf)
+        pprint.pprint(dic_individual)
+
+
 
 
     def plot_time_series_zscore(self):  ###plot time series
-        f = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\zscore_result_statistical_annual2.npy'
+        f = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\zscore_result_statistical_annual_average_new.npy'
         dic = T.load_npy(f)
         period_name = ['early_peak', 'late', 'early_peak_late']
 
-        product_list = ['MCD', 'Trendy_ensemble', 'CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
+
+        product_list = ['MCD', 'average', 'CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
                         'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
                         'LPX-Bern_S2_lai', 'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
         color_list = ['green', 'black']
@@ -3808,7 +3868,10 @@ class long_term_trends():   ### early-and peak vs. late and early-peak and late 
         linewidth_list = [2, 2, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
                           0.5]
 
-        fig = plt.figure()
+        centimeter = 1 / 2.54
+
+
+        fig = plt.figure(figsize=(18 * centimeter, 12 * centimeter))
         i = 1
 
         for region in ['Humid', 'Dryland']:
@@ -3830,45 +3893,48 @@ class long_term_trends():   ### early-and peak vs. late and early-peak and late 
                     key = f'{region}_{period}_{variable}'
                     result_i = dic[key]
                     mean_value_yearly = result_i['mean_value_yearly']
-                    up_list = result_i['up_list']
-                    bottom_list = result_i['bottom_list']
+                    # up_list = result_i['up_list']
+                    # bottom_list = result_i['bottom_list']
                     fit_value_yearly = result_i['fit_value_yearly']
                     k_value = result_i['k_value']
                     p_value = result_i['p_value']
                     print(f'{region}_{variable}', 'k={:0.2f},p={:0.4f}'.format(k_value, p_value))
+                    yearlist=range(2003,2022)
 
-                    plt.plot(mean_value_yearly, label=variable, c=color, zorder=zorder, linewidth=linewidth)
-                    plt.plot(fit_value_yearly, linestyle='--', label='k={:0.2f},p={:0.4f}'.format(k_value, p_value),
+                    plt.plot(yearlist,mean_value_yearly, label=variable, c=color, zorder=zorder, linewidth=linewidth)
+                    plt.plot(yearlist,fit_value_yearly, linestyle='--', label='k={:0.2f},p={:0.2f}'.format(k_value, p_value),
                              c=color, linewidth=linewidth)
                     # print(f'{region}_{variable}','k={:0.2f},p={:0.4f}'.format(k_value, p_value))
-                    plt.fill_between(range(len(mean_value_yearly)), up_list, bottom_list, alpha=0.1, zorder=-1,
-                                     color=color)
+                    # plt.fill_between(range(len(mean_value_yearly)), up_list, bottom_list, alpha=0.1, zorder=-1,
+                    #                  color=color)
                     #### show text p value trend only show Trendy_ensemble and MCD
-                    if variable == 'Trendy_ensemble' or variable == 'MCD':
+                    if variable == 'average' or variable == 'MCD':
                         ## position of text
                         x = 0
                         y = mean_value_yearly[0]+0.7
-                        plt.text(x, y, 'k={:0.2f},p={:0.4f}'.format(k_value, p_value), fontsize=10, color=color)
-
-
-
-
-
+                        # plt.text(x, y, 'k={:0.2f},p={:0.2f}'.format(k_value, p_value), fontsize=10, color=color)
 
 
                 plt.ylabel('zscore')
                 plt.xlabel('year')
-                major_xticks = np.arange(0, 20, 5)
+                major_xticks = np.arange(2003, 2022, 5)
+                plt.xticks(major_xticks, rotation=45)
                 plt.title(f'{period}_{region}')
 
                 # major_yticks = np.arange(-10, 15, 5)
-                major_yticks = np.arange(-1.1, 1.1, 0.2)
+                major_yticks = np.arange(-0.8, 0.9, 0.4)
+                plt.ylim(-0.8, 0.8)
                 # major_ticks = np.arange(0, 40, 5)  ### 根据数据长度修改这里
                 ax.set_xticks(major_xticks)
                 ax.set_yticks(major_yticks)
                 plt.grid(which='major', alpha=0.5)
                 plt.tight_layout()
                 i = i + 1
+        outdir = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\'
+        T.mk_dir(outdir, force=1)
+        outf = outdir + 'zscore_result_statistical_annual_average_new.pdf'
+        plt.savefig(outf)
+        plt.close()
 
 
         plt.show()
@@ -4002,7 +4068,7 @@ class long_term_trends():   ### early-and peak vs. late and early-peak and late 
     def plot_feedback_vs_trend(self):
         dff=result_root+rf'Data_frame\zscore_result_statistical_annual\frequency_temporal_change_TRENDY_individual_statistic\\result_new.df'
         df=T.load_df(dff)
-        marker_list = ['*','o', 's', 'D', 'v', 'p', 'P', '^', 'X', 'd', ]
+        marker_list = ['*','o', 's', 'D', 'v', 'p', 'P', '^', 'X', 'd', '<', '>']
 
 
         color_list = T.gen_colors(12)
@@ -4020,38 +4086,54 @@ class long_term_trends():   ### early-and peak vs. late and early-peak and late 
                 x_list = []
                 y_list = []
                 label_list = []
-                p_value_list = []
-                flag = 1
+                p_value_list_sta=[]
+                p_value_list_trend=[]
+                flag = 0
                 for variable in product_list:
 
                     key=f'{region}-{variable}'
                     df_pick=df[df['model']==key]
                     y=df_pick[f'k_value_{period}'].to_list()
                     x=df_pick[f'a_strong_stab'].to_list()
-                    p_value=df_pick[f'p_strong_stab'].to_list()
+                    x=x[0]*100
+                    y=y[0]
+
+                    p_value_sta=df_pick[f'p_strong_stab'].to_list()
+                    p_value_trend=df_pick[f'p_value_{period}'].to_list()
                     x_list.append(x)
 
                     y_list.append(y)
-                    p_value_list.append(p_value)
+                    p_value_list_sta.append(p_value_sta)
+                    p_value_list_trend.append(p_value_trend)
+
                     label_list.append(f'{region}-{variable}-{period}')
-                plt.figure()
+                centimeter = 2.54
+                plt.figure(figsize=(9/centimeter, 7/centimeter))
 
                 for i in range(len(x_list)):
                     x=x_list[i]
                     y=y_list[i]
                     label=label_list[i]
-                    p_value=p_value_list[i]
+                    p_value_trend=p_value_list_trend[i]
 
+                    p_value_sta=p_value_list_sta[i]
                     plt.scatter(x,y,label=label,marker=marker_list[flag],color=color_list[flag])
-                    plt.text(x[0]+0.0005,y[0],f'p={p_value[0]:0.4f}',fontsize=10)
+                    plt.text(x, y, f'P={p_value_trend[0]:0.2f}\nP={p_value_sta[0]:0.2f}', fontsize=6, color='black')
+
                     flag+=1
 
-                    plt.tight_layout()
                 plt.title(f'{region}-{period}')
-                plt.xlabel('strong_stabilization_feedback_trend')
-                plt.ylabel('interannual_growing_season_trend')
+                plt.xlabel('strong_stabilization_feedback_trend (%/year)')
+                plt.ylabel('interannual_growing_season_trend(/year)')
                 plt.legend()
-                plt.show()
+                plt.tight_layout()
+                outdir=result_root+rf'\\Data_frame\zscore_result_statistical_annual\frequency_temporal_change_TRENDY_individual_statistic\\'
+                outf=join(outdir,f'{region}_{period}.pdf')
+                plt.savefig(outf)
+                plt.close()
+
+
+                # plt.show()
 
     def barplot(self):
         dff=result_root+rf'Data_frame\zscore_result_statistical_annual\frequency_temporal_change_TRENDY_individual_statistic\\result_new.df'
