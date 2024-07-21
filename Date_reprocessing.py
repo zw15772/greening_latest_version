@@ -3853,7 +3853,6 @@ class long_term_trends():   ### early-and peak vs. late and early-peak and late 
 
 
 
-
     def plot_time_series_zscore(self):  ###plot time series
         f = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\zscore_result_statistical_annual_average_new.npy'
         dic = T.load_npy(f)

@@ -5,39 +5,38 @@ import PIL.Image as Image
 import semopy
 T = Tools()
 
-this_root = '/mnt/data/project/'
-data_root = '/mnt/data/project/Data/'
-result_root = '/mnt/data/project/Result/'
+this_root = rf'D:\Greening\\Upload_samples\\'
+data_root = this_root + 'Data\\'
+result_root = this_root + 'Result\\'
 
 class build_dataframe():
 
     def __init__(self):
 
-        self.this_class_arr = result_root + 'Data_frame\detrend_zscore_new\\'
+        self.this_class_arr = result_root + rf'Data_frame\Frequency\MCD\\'
         # self.this_class_arr = result_root + rf'Data_frame\Frequency\Trendy_ensemble\\'
 
         Tools().mk_dir(self.this_class_arr, force=True)
-        self.dff = self.this_class_arr + 'detrend_zscore_new.df'
+        self.dff = self.this_class_arr + 'frequency_dataframe.df'
         self.P_PET_fdir = data_root+rf'\Base_data\aridity_P_PET_dic\\'
         pass
 
     def run(self):
 
         df = self.__gen_df_init(self.dff)
-        # df=self.foo1(df)
-        # df=self.add_detrend_zscore_to_df(df)
-        #
-        # df = self.add_row(df)
-        #
-        # df = self.add_max_trend_to_df(df)
-        #
-        # df = self.add_NDVI_mask(df)
-        #
-        # df = self.add_GLC_landcover_data_to_df(df)
-        #
-        # P_PET_dic = self.P_PET_ratio(self.P_PET_fdir)
-        # P_PET_reclass_dic = self.P_PET_reclass_2(P_PET_dic)
-        # df = T.add_spatial_dic_to_df(df, P_PET_reclass_dic, 'HI_class')
+        df=self.foo1(df)
+
+        df = self.add_row(df)
+
+        df = self.add_max_trend_to_df(df)
+
+        df = self.add_NDVI_mask(df)
+
+        df = self.add_GLC_landcover_data_to_df(df)
+
+        P_PET_dic = self.P_PET_ratio(self.P_PET_fdir)
+        P_PET_reclass_dic = self.P_PET_reclass_2(P_PET_dic)
+        df = T.add_spatial_dic_to_df(df, P_PET_reclass_dic, 'HI_class')
 
 
         # df=self.show_field(df)
@@ -993,9 +992,10 @@ class frequency_analysis():  # Amplification and Stabilization analysis
 
         # df=self.pick_greening_year_frequency_heatmap()
 
-        ## 2. add landcover and trend, row, and some attributes
+        ## 2. add landcover and trend, row, and some attributes such as aridity
 
         # call the function in the class of 'build_dataframe'
+
 
         # 3. plot frequency heatmap
 
@@ -1029,11 +1029,12 @@ class frequency_analysis():  # Amplification and Stabilization analysis
         return df
 
 
-    def pick_greening_year_frequency_heatmap(self): # 通过pick years and calculate frequency
+    def pick_greening_year_frequency_heatmap(self): #
+        # select years which is defined as stabilization, amplification years and create a dataframe
 
-        f_early_peak_LAI = result_root + rf'\\detrend_zscore\\early_peak\\Trendy_ensemble.npy'
-        f_late_LAI = result_root + rf'\detrend_zscore\\late\\Trendy_ensemble.npy'
-        outdir = result_root + rf'Data_frame/Frequency/\\Trendy_ensemble///'
+        f_early_peak_LAI = data_root + rf'\detrended_zscore_LAI\\early_peak\\MCD.npy'
+        f_late_LAI = data_root + rf'\detrended_zscore_LAI\\late\\MCD.npy'
+        outdir = result_root + rf'Data_frame/Frequency//MCD///'
         outf = outdir + f'frequency_dataframe.df'
         T.mk_dir(outdir, force=1)
         dic_early_peak_LAI = dict(np.load(f_early_peak_LAI, allow_pickle=True, ).item())
@@ -1105,6 +1106,8 @@ class frequency_analysis():  # Amplification and Stabilization analysis
         df=T.spatial_dics_to_df(all_result_dic)
 
         T.save_df(df,outf)
+        ## .df to .xlsx
+        outf = outf.replace('.df', '.xlsx')
         T.df_to_excel(df,outf)
         return df
 
@@ -1725,3 +1728,13 @@ class Stabilization_amplification_longterm_trends:
 
 
         plt.show()
+
+def main():
+    frequency_analysis().run()
+
+
+
+    pass
+
+if __name__ == '__main__':
+    main()
