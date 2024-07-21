@@ -1389,22 +1389,30 @@ class frequency_analysis():  # Amplification and Stabilization analysis
         return projection
 
 
-class SEM_wen:
+class SEM:
     def __init__(self):
         # This class is used to calculate the structural equation model
-        self.this_class_arr = result_root + '\Data_frame\detrend_zscore_new\\'
-        self.dff = self.this_class_arr + 'detrend_zscore_new.df'
-        self.outdir = result_root + 'SEM3//'
+        self.this_class_arr = result_root + '\Data_frame\detrend_zscore\\'
+        self.dff = self.this_class_arr + 'detrend_zscore.df'
+        self.outdir = result_root + 'SEM//'
         T.mkdir(self.outdir, force=True)
 
         pass
 
     def run(self):
+        ## 1. load dataframe
         df, dff = self.__load_df()
-        des = self.model_description_not_detrend_new()
+        ## 2. model description
+        des = self.model_description_detrend()
 
+        ## 3. to select region of water-limited and energy-limited
         df_clean = self.clean_df(df)
+        ## 4. run SEM model and save the result[remember change the model name for
+        ##water-limited and energy-limited, seperately based on the selected region]
         self.SEM_model(df_clean, des)
+
+
+
         pass
 
     def __load_df(self):
@@ -1420,71 +1428,14 @@ class SEM_wen:
         df = df[df['HI_class'] == 'Dryland']
         df = df[df['max_trend'] < 10]
         df = df[df['early_peak_MCD'] > 0]
-        ## late <early
-        # df=df[df['late_MCD']>df['early_peak_MCD']] ###
-        # df=df[df['late_MCD']<0]
-        # df = df[df['detrend_late_MODIS_LAI_zscore'] > 0]
+
 
         df = df[df['landcover_GLC'] != 'Crop']
 
         return df
 
-    def model_description_not_detrend(self):
-        desc_water_limited_SMroot = '''
-                            # regressions
 
-                            early_peak_MCD~early_Temp+early_precip
-
-                            peak_SMroot~  early_peak_MCD+peak_precip
-
-                            late_MCD ~ peak_SMroot + late_Temp
-                            late_MCD~peak_precip
-
-
-                            # residual correlations
-                             early_peak_MCD~~early_peak_MCD
-                                peak_SMroot~~peak_SMroot
-                                late_MCD~~late_MCD
-
-                                early_peak_MCD~~early_Temp
-                                early_peak_MCD~~early_precip
-                                peak_SMroot~~early_peak_MCD
-                                peak_SMroot~~peak_precip
-                                late_MCD~~peak_SMroot
-                                late_MCD~~late_Temp
-                                late_MCD~~peak_precip
-
-                            '''
-
-        desc_energy_limited_SMroot = '''
-                                    # regressions
-
-                                    early_peak_MCD~early_Temp+early_precip
-
-                                    peak_SMroot~  early_peak_MCD+peak_precip
-
-                                    late_MCD ~ peak_SMroot + late_Temp
-                                    late_MCD~peak_precip
-
-
-                                    # residual correlations
-                                     early_peak_MCD~~early_peak_MCD
-                                        peak_SMroot~~peak_SMroot
-                                        late_MCD~~late_MCD
-
-                                        early_peak_MCD~~early_Temp
-                                        early_peak_MCD~~early_precip
-                                        peak_SMroot~~early_peak_MCD
-                                        peak_SMroot~~peak_precip
-                                        late_MCD~~peak_SMroot
-                                        late_MCD~~late_Temp
-                                        late_MCD~~peak_precip
-
-                                    '''
-
-        return desc_water_limited_SMroot
-
-    def model_description_not_detrend_new(self):
+    def model_description_detrend(self):
         desc_all_limited_SMroot = '''
                              # regressions
 
@@ -1523,18 +1474,228 @@ class SEM_wen:
 
         result = mod.inspect()
         T.print_head_n(result)
-        outf = self.outdir + f'water_limited_MCD'
+        outf = self.outdir + f'water_limited_MCD'  #### save name
         T.save_df(result, outf + '.df')
         T.df_to_excel(result, outf + '.xlsx')
 
         outf = self.outdir + 'water_limited_MCD'
         semopy.report(mod, outf)
 
+class SEM_anaysis():  #### SEM result comparision between observation and model
+    def __init__(self):
+        self.this_class_arr = result_root + 'SEM3\\'
+        T.mk_dir(self.this_class_arr, force=1)
+
+
+
+        pass
+    def run(self):
+        self.SEM_process_comparision()
+        # self.model_performance()
+
+        pass
+
+
+    def SEM_process_comparision(self):
+        marker_list = ['o', 's', 'D', 'v', 'p', 'P', '^', 'X', 'd']
+        # color_list=['g','b','y','c','m','k','orange','purple','brown']
+        color_list = T.gen_colors(9)
+
+        fdir = join(self.this_class_arr, 'df_model')
+        # region = 'water_limited'
+        region = 'water_limited'
+        val_list = []
+        result_dict = {}
+
+        ax=plt.subplot(111)
+
+        for f in T.listdir(fdir):
+            if not f.endswith('.df'):
+                continue
+            if not f.startswith(region):
+                continue
+            # print(f)
+            model = f.split('.')[0].replace(region + '_', '').replace('_lai', '')
+            path_list_l = self.path_list_left(model)
+            path_list_r = self.path_list_right(model)
+            dff = join(fdir, f)
+            df = T.load_df(dff)
+            df = df[df['op'] != '~~']
+
+            for i in range(len(path_list_l)):
+                lv = path_list_l[i]
+                rv = path_list_r[i]
+
+                df_l = df[df['lval'] == lv]
+                df_r = df_l[df_l['rval'] == rv]
+                print (df_r)
+
+                if len(df_r) != 1:
+                    print(len(df_r))
+                    raise ValueError
+                Estimate = df_r['Estimate'].values[0]
+                # print(Estimate)
+                lv = lv.replace(model + '_', '')
+                rv = rv.replace(model + '_', '')
+                key = f'{rv}--->{lv}'
+                if not key in result_dict:
+                    result_dict[key] = {}
+                result_dict[key][model] = Estimate
+                # result_dict[key] = Estimate
+        df_result = T.dic_to_df(result_dict, 'path')
+        print(df_result)
+        T.print_head_n(df_result)
+        obs_SEM_result = self.obs_SEM(region)
+        path = df_result['path']
+        boxes = []
+        x_lable = []
+
+        for p in path:
+            flag = 0
+            df_p = df_result[df_result['path'] == p]
+
+            vals = df_p.values[0]
+            vals_i_list = []
+            for v in vals:
+                if type(v) == float:
+                    vals_i_list.append(v)
+
+                    print(flag)
+
+                    print(df_p.columns)
+                    model_name = df_p.columns[flag+1]
+                    plt.scatter(v,p, marker=marker_list[flag], color=color_list[flag], s=30,zorder=5,linewidths=0.5,edgecolors='k',label=model_name)
+                    flag+=1
+            boxes.append(vals_i_list)
+            x_lable.append(p)
+            # plt.scatter(vals_i_list, [p for i in range(len(vals_i_list))], marker=marker_list[flag], color=color_list[flag], s=50)
+        # x_lable_obs = obs_SEM_result.keys()
+
+        # x_lable_obs = list(x_lable_obs)
+
+        vals_obs = [obs_SEM_result[x] for x in x_lable]
+        plt.boxplot(boxes, labels=x_lable, showfliers=False, vert=False, positions=range(len(x_lable)),zorder=100,patch_artist=True,boxprops=dict(facecolor='none', color='k'),whiskerprops=dict(color='black'),medianprops=dict(color='black'))
+
+        plt.scatter(vals_obs, x_lable, marker='*', color='r', s=100,zorder=10)
+        ### reverse the y axis
+        plt.gca().invert_yaxis()
+        plt.title(region)
+        # plt.legend()
+
+        plt.tight_layout()
+        plt.show()
+
+    def obs_SEM(self, region):
+        fdir = join(self.this_class_arr, 'df_obs')
+        # region = 'water_limited'
+        fpath = join(fdir, f'{region}_MCD.df')
+        df = T.load_df(fpath)
+        df = df[df['op'] == '~']
+        path_list = []
+        T.print_head_n(df)
+        results_dict = {}
+        for i, row in df.iterrows():
+            lv = row['lval']
+            rv = row['rval']
+            # print(lv, rv)
+            lv = lv.replace('MCD', 'lai')
+            rv = rv.replace('MCD', 'lai')
+
+            lv = lv.replace('SMroot', 'mrso')
+            rv = rv.replace('SMroot', 'mrso')
+            label = f'{rv}--->{lv}'
+            # path_list.append(f'{rv}--->{lv}')
+            val = row['Estimate']
+            results_dict[label] = val
+        return results_dict
+
+    def path_list_left(self, model):
+        path_list = [
+            f'early_peak_{model}_lai',
+            f'early_peak_{model}_lai',
+
+            f'late_{model}_mrso',
+            f'late_{model}_mrso',
+            f'late_{model}_mrso',
+
+
+            f'late_{model}_lai',
+            f'late_{model}_lai',
+            f'late_{model}_lai',
+        ]
+        return path_list
+
+    def path_list_right(self,model):
+        path_list = [
+            'early_Temp',
+            'early_precip',
+
+            f'early_peak_{model}_lai',
+            'peak_precip',
+            'late_Temp',
+
+            f'late_{model}_mrso',
+            'late_Temp',
+            'late_precip',
+        ]
+        return path_list
+
+    def model_performance(self):
+        fig = plt.figure(figsize=(10, 5))
+        xlsx = result_root + 'SEM3\model_performance_energy_limited.xlsx'
+        df = pd.read_excel(xlsx)
+        T.print_head_n(df)
+        attriute_list = ['RMSE', 'GFI', 'AGFI', ]
+        ### read columns model name and RMSEA
+        flag=1
+        for attribute in attriute_list:
+            ax = fig.add_subplot(1, 3, flag)
+
+            model_list = df['Model_name']
+            RMSEA_list = df[attribute]
+            ## reverse the RMSEA and model name
+            RMSEA_list = RMSEA_list[::-1]
+            model_list = model_list[::-1]
+            RMSEA_list = RMSEA_list.to_list()
+            model_list = model_list.to_list()
+            print(model_list)
+            print(RMSEA_list)
+
+            ## add a line to show the threshold of MODIS
+            ## get MODIS RMSEA
+            modis_RMSEA = df[df['Model_name'] == 'MODIS'][attribute].values[0]
+            print(modis_RMSEA)
+            ## plot all attribute
+
+            ax.bar(range(len(model_list)), RMSEA_list, color='b', label=attribute)
+            ax.axhline(y=modis_RMSEA, color='r', linestyle='--', label='MODIS')
+            ax.set_xticks(range(len(model_list)))
+            ax.set_xticklabels(model_list, rotation=45)
+            ax.set_ylabel(attribute)
+            ax.set_xlabel('Model')
+            ax.legend()
+
+            flag=flag+1
+        plt.tight_layout()
+        plt.show()
+
+
+
+
+
+
+        pass
+
+
 
 class Stabilization_amplification_longterm_trends:
 
     def __init__(self):
 
+        pass
+    def run(self):
+        self.plot_feedback_vs_trend()
+        # self.plot_time_series_zscore()
         pass
 
     def plot_feedback_vs_trend(self):
@@ -1692,7 +1853,18 @@ class Stabilization_amplification_longterm_trends:
         plt.show()
 
 def main():
-    frequency_analysis().run()
+    ## 1. create spatial map and heatmap of frequency of stabilization and amplification [figure1]
+    # frequency_analysis().run()
+
+    ## 2. create SEM model and save the result [figure2]
+    # SEM().run()
+
+    ## 3. compare the SEM result between observation and model [figure3]
+    SEM_anaysis().run()
+
+    ## 4. create spatial map of frequency of stabilization and amplification [figure4]
+    # Stabilization_amplification_longterm_trends().run()
+
 
 
 
