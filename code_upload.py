@@ -976,8 +976,8 @@ class frequency_analysis():  # Amplification and Stabilization analysis
     def __init__(self):
 
         # This class is used to calculate the structural equation model
-        self.this_class_arr = result_root + 'Data_frame\\Frequency\\LAI3g_MCD_2003_2018\\MCD\\'
-        self.this_class_tif = result_root + 'Data_frame\\Frequency\\LAI3g_MCD_2003_2018\\MCD\\'
+        self.this_class_arr = result_root + 'Data_frame\\Frequency\\MCD\\'
+        self.this_class_tif = result_root + 'Data_frame\\Frequency\\MCD\\tif\\'
 
         self.dff = self.this_class_arr + 'frequency_dataframe.df'
 
@@ -999,14 +999,14 @@ class frequency_analysis():  # Amplification and Stabilization analysis
 
         # 3. plot frequency heatmap
 
-        df, dff = self.__load_df()
-        df_clean = self.clean_df(df)
-        self.frenquency_heatmap(df_clean)
+        # df, dff = self.__load_df()
+        # df_clean = self.clean_df(df)
+        # self.frenquency_heatmap(df_clean)
 
-        ## 4. plot frequency bar
-        # self.frenquency_heatmap_bar(df_clean)
 
-        # 5. create spatial map of frequency of stabilization and amplification
+
+        # 4. create spatial map of frequency of stabilization and amplification
+        self.spatial_frequency()
 
 
         pass
@@ -1195,52 +1195,14 @@ class frequency_analysis():  # Amplification and Stabilization analysis
             # plt.tight_layout()
 
 
-            plt.title(f'Trendy_{region}')
+            plt.title(f'MCD_{region}')
 
         plt.show()
         plt.close()
         #     plt.savefig(result_root + rf'Data_frame\\Frequency\\Trendy_{region}.pdf', dpi=300, )
         #     plt.close()
 
-    def frenquency_heatmap_bar(self):
 
-        fdir = join(data_root, 'Frequency/LAI3g')
-        outdir = join(self.this_class_png, 'LAI3g')
-        T.mk_dir(outdir)
-        for f in T.listdir(fdir):
-            arr = np.load(join(fdir, f))
-            flag = 0
-            strong_stabilization_sum_list = []
-            weak_stabilization_sum_list = []
-            amplification_sum_list = []
-            for arr_i in arr:
-                strong_stabilization = arr_i[:6]
-                weak_stabilization = arr_i[6:12 - flag]
-                amplification = arr_i[12 - flag:]
-                flag += 1
-                strong_stabilization_sum = np.sum(strong_stabilization)
-                weak_stabilization_sum = np.sum(weak_stabilization)
-                amplification_sum = np.sum(amplification)
-
-                strong_stabilization_sum_list.append(strong_stabilization_sum)
-                weak_stabilization_sum_list.append(weak_stabilization_sum)
-                amplification_sum_list.append(amplification_sum)
-            strong_stabilization_sum_list = np.array(strong_stabilization_sum_list)
-            weak_stabilization_sum_list = np.array(weak_stabilization_sum_list)
-            amplification_sum_list = np.array(amplification_sum_list)
-
-            plt.bar(np.arange(len(arr)), strong_stabilization_sum_list, label='strong_stabilization')
-            plt.bar(np.arange(len(arr)), weak_stabilization_sum_list, bottom=strong_stabilization_sum_list,
-                    label='weak_stabilization')
-            plt.bar(np.arange(len(arr)), amplification_sum_list,
-                    bottom=strong_stabilization_sum_list + weak_stabilization_sum_list, label='amplification')
-            # plt.legend()
-            plt.title(f)
-            outf = join(outdir, f.replace('.npy', '.pdf'))
-            plt.savefig(outf)
-            plt.close()
-            # plt.show()
-        T.open_path_and_file(outdir)
 
     def spatial_frequency(self):
         Ter = xymap.Ternary_plot(
@@ -1256,12 +1218,12 @@ class frequency_analysis():  # Amplification and Stabilization analysis
 
         # plt.imshow(rgb_arr)
         # plt.show()
-        outdir = join(self.this_class_tif,'frequency_rgba_LAI3g')
-        fdir_early = join(data_root,'LAI3g_MCD_2003_2018/early_peak')
-        fdir_late = join(data_root,'LAI3g_MCD_2003_2018/late')
+        outdir = join(self.this_class_tif,'MCD')
+        fdir_early = join(data_root,'detrended_zscore_LAI/early_peak')
+        fdir_late = join(data_root,'detrended_zscore_LAI/late')
         for f in T.listdir(fdir_early):
-            # if not 'MCD' in f:
-            #     continue
+            if not 'MCD' in f:
+                continue
             outdir_i = join(outdir,f.replace('.npy',''))
             T.mk_dir(outdir_i,force=True)
             fpath_early = join(fdir_early,f)
