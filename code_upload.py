@@ -1,4 +1,5 @@
 # coding=utf-8
+import matplotlib.pyplot as plt
 from lytools import *
 import xymap
 import PIL.Image as Image
@@ -1483,7 +1484,7 @@ class SEM:
 
 class SEM_anaysis():  #### SEM result comparision between observation and model
     def __init__(self):
-        self.this_class_arr = result_root + 'SEM3\\'
+        self.this_class_arr = result_root + 'SEM_anaysis\\'
         T.mk_dir(self.this_class_arr, force=1)
 
 
@@ -1694,9 +1695,273 @@ class Stabilization_amplification_longterm_trends:
 
         pass
     def run(self):
-        self.plot_feedback_vs_trend()
-        # self.plot_time_series_zscore()
+        ##1 based on the zscore result, calculate the long term trend
+        # self.calcualte_long_term_trend()
+        # self.calculate_average()
+        self.plot_time_series_zscore()
+        # self.calculate_stabilization_temporal_change_statistic()
+        # self.plot_feedback_vs_trend()
+
         pass
+
+
+    def calcualte_long_term_trend(self):
+        df=T.load_df(result_root+rf'\\Data_frame\zscore\\zscore.df')
+
+        df = df[df['row'] < 120]
+
+        df = df[df['max_trend'] < 10]
+
+        df = df[df['landcover_GLC'] != 'Crop']
+        period_name = ['early_peak', 'late', 'early_peak_late']
+        product_list = ['MCD', 'CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
+                        'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
+                        'LPX-Bern_S2_lai', 'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
+
+        result_dic = {}
+        for region in ['Humid', 'Dryland']:
+
+            for period in period_name:
+
+                df_pick = df[df['HI_class'] == region]
+
+                for variable in product_list:
+                    column_name = f'{period}_{variable}'
+
+                    print(column_name)
+
+                    mean_value_yearly, up_list, bottom_list, fit_value_yearly, k_value, p_value = self.plot_calculation(
+                        df_pick, column_name)
+
+                    key = f'{region}_{period}_{variable}'
+                    result_dic[key] = {
+                        'mean_value_yearly': mean_value_yearly,
+                        'up_list': up_list,
+                        'bottom_list': bottom_list,
+                        'fit_value_yearly': fit_value_yearly,
+                        'k_value': k_value,
+                        'p_value': p_value,
+
+                    }
+        outdir = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\'
+        T.mk_dir(outdir, force=1)
+        outf = outdir + 'zscore_result_statistical_annual.npy'
+        T.save_npy(result_dic, outf)
+    pass
+
+
+    def plot_calculation(self,df,column_name):
+        dic = {}
+        mean_val = {}
+        confidence_value = {}
+        std_val = {}
+        # year_list = df['year'].to_list()
+        # year_list = set(year_list)  # 取唯一
+        # year_list = list(year_list)
+        # year_list.sort()
+
+        year_list = []
+        for i in range(2003, 2022):
+            year_list.append(i)
+        print(year_list)
+
+        for year in tqdm(year_list):  # 构造字典的键值，并且字典的键：值初始化
+            dic[year] = []
+            mean_val[year] = []
+            confidence_value[year] = []
+
+        for year in year_list:
+            df_pick = df[df['year'] == year]
+            for i, row in tqdm(df_pick.iterrows(), total=len(df_pick)):
+                pix = row.pix
+                val = row[column_name]
+                dic[year].append(val)
+            val_list = np.array(dic[year])
+            # val_list[val_list>1000]=np.nan
+
+            n = len(val_list)
+            mean_val_i = np.nanmean(val_list)
+            std_val_i = np.nanstd(val_list)
+            se = stats.sem(val_list)
+            h = se * stats.t.ppf((1 + 0.95) / 2., n - 1)
+            confidence_value[year] = h
+            mean_val[year] = mean_val_i
+            std_val[year] = std_val_i
+
+        # a, b, r = KDE_plot().linefit(xaxis, val)
+        mean_val_list = []  # mean_val_list=下面的mean_value_yearly
+
+        for year in year_list:
+            mean_val_list.append(mean_val[year])
+        xaxis = range(len(mean_val_list))
+        xaxis = list(xaxis)
+        print(len(mean_val_list))
+        # r, p_value = stats.pearsonr(xaxis, mean_val_list)
+        # k_value, b_value = np.polyfit(xaxis, mean_val_list, 1)
+        k_value, b_value, r, p_value = T.nan_line_fit(xaxis, mean_val_list)
+        print(k_value)
+
+        mean_value_yearly = []
+        up_list = []
+        bottom_list = []
+        fit_value_yearly = []
+        p_value_yearly = []
+
+        for year in year_list:
+            mean_value_yearly.append(mean_val[year])
+            # up_list.append(mean_val[year] + confidence_value[year])
+            # bottom_list.append(mean_val[year] - confidence_value[year])
+            up_list.append(mean_val[year] + 0.125 * std_val[year])
+            bottom_list.append(mean_val[year] - 0.125 * std_val[year])
+
+            fit_value_yearly.append(k_value * (year - year_list[0]) + b_value)
+
+
+
+        return mean_value_yearly, up_list, bottom_list, fit_value_yearly, k_value, p_value
+        # exit()
+    def calculate_average(self):## 实现计算中位数 of individual product
+        import pprint
+        df= T.load_df(result_root + rf'\\Data_frame\zscore\\zscore.df')
+        f_individual = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\zscore_result_statistical_annual.npy'
+        dic_individual = T.load_npy(f_individual)
+        # print(dic_individual)
+        # pprint.pprint(dic_individual)
+        # exit()
+
+
+        product_list = [ 'CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
+                        'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
+                        'LPX-Bern_S2_lai', 'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
+        period_name = ['early_peak', 'late', 'early_peak_late']
+        region_list = ['Humid', 'Dryland']
+        # T.print_head_n(df)
+        # exit()
+        # result_dic = {}
+        for region in region_list:
+            for period in period_name:
+                whole_list = []
+                for product in product_list:
+                    column_name = f'{period}_{product}'
+                    df_pick = df[df['HI_class'] == region]
+
+                    mean_value_yearly, up_list, bottom_list, fit_value_yearly, k_value, p_value = self.plot_calculation(
+                        df_pick, column_name)
+                    whole_list.append(mean_value_yearly)
+                        ## average
+                average_list = np.nanmean(whole_list, axis=0)
+                ## calculate k,p
+                xaxis = range(len(average_list))
+                xaxis = list(xaxis)
+                k_value, b_value, r, p_value = T.nan_line_fit(xaxis, average_list)
+                fit_value_yearly_average = []
+                for year in range(2003, 2022):
+
+                    fit_value_yearly_average.append(k_value * (year - 2003) + b_value)
+
+                dic_individual[f'{region}_{period}_average'] = {
+                    'mean_value_yearly': average_list,
+                    'up_list':[],
+                    'bottom_list': [],
+                    'fit_value_yearly': fit_value_yearly_average,
+                    'k_value': k_value,
+                    'p_value': p_value,}
+                # pprint.pprint(result_dic)
+                # dic_individual.update(result_dic)
+                # exit()
+
+        outdir = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\'
+        T.mk_dir(outdir, force=1)
+        outf = outdir + 'zscore_result_statistical_annual_average.npy'
+        T.save_npy(dic_individual, outf)
+        pprint.pprint(dic_individual)
+
+
+
+    def plot_time_series_zscore(self):  ###plot time series
+        f = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\zscore_result_statistical_annual_average.npy'
+        dic = T.load_npy(f)
+        period_name = ['early_peak', 'late', 'early_peak_late']
+
+        product_list = ['MCD', 'average', 'CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
+                        'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
+                        'LPX-Bern_S2_lai', 'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
+        color_list = ['green', 'black']
+        color_list.extend('silver' for i in range(len(product_list) - 2))
+        linewidth_list = [2, 2, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
+                          0.5]
+
+        centimeter = 1 / 2.54
+
+
+        fig = plt.figure(figsize=(18 * centimeter, 12 * centimeter))
+        i = 1
+
+        for region in ['Dryland','Humid']:
+
+            for period in period_name:
+                ax = fig.add_subplot(2, 3, i)
+
+                flag = 0
+                for variable in product_list:
+
+                    color = color_list[flag]
+                    linewidth = linewidth_list[flag]
+                    if flag >= 2:
+                        zorder = 0
+                    else:
+                        zorder = 1
+
+                    flag += 1
+                    key = f'{region}_{period}_{variable}'
+                    result_i = dic[key]
+                    mean_value_yearly = result_i['mean_value_yearly']
+                    # up_list = result_i['up_list']
+                    # bottom_list = result_i['bottom_list']
+                    fit_value_yearly = result_i['fit_value_yearly']
+                    k_value = result_i['k_value']
+                    p_value = result_i['p_value']
+                    print(f'{region}_{variable}', 'k={:0.2f},p={:0.4f}'.format(k_value, p_value))
+                    yearlist=range(2003,2022)
+
+                    plt.plot(yearlist,mean_value_yearly, label=variable, c=color, zorder=zorder, linewidth=linewidth)
+                    plt.plot(yearlist,fit_value_yearly, linestyle='--', label='k={:0.2f},p={:0.2f}'.format(k_value, p_value),
+                             c=color, linewidth=linewidth)
+                    # print(f'{region}_{variable}','k={:0.2f},p={:0.4f}'.format(k_value, p_value))
+                    # plt.fill_between(range(len(mean_value_yearly)), up_list, bottom_list, alpha=0.1, zorder=-1,
+                    #                  color=color)
+                    # #### show text p value trend only show Trendy_ensemble and MCD
+                    # if variable == 'average' or variable == 'MCD':
+                    #     ## position of text
+                    #     x = 0
+                    #     y = mean_value_yearly[0]+0.7
+                    #     # plt.text(x, y, 'k={:0.2f},p={:0.2f}'.format(k_value, p_value), fontsize=10, color=color)
+
+
+                plt.ylabel('zscore')
+                plt.xlabel('year')
+                major_xticks = np.arange(2003, 2022, 5)
+                plt.xticks(major_xticks, rotation=45)
+                plt.title(f'{period}_{region}')
+
+                # major_yticks = np.arange(-10, 15, 5)
+                major_yticks = np.arange(-0.8, 0.9, 0.4)
+                plt.ylim(-0.8, 0.8)
+                # major_ticks = np.arange(0, 40, 5)  ### 根据数据长度修改这里
+                ax.set_xticks(major_xticks)
+                ax.set_yticks(major_yticks)
+                plt.grid(which='major', alpha=0.5)
+                plt.tight_layout()
+                i = i + 1
+        plt.show()
+        # outdir = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\'
+        # T.mk_dir(outdir, force=1)
+        # outf = outdir + 'zscore_result_statistical_annual_average_new.pdf'
+        # plt.savefig(outf)
+        # plt.close()
+
+
+
 
     def plot_feedback_vs_trend(self):
         dff=result_root+rf'Data_frame\zscore_result_statistical_annual\frequency_temporal_change_TRENDY_individual_statistic\\result_new.df'
@@ -1765,92 +2030,125 @@ class Stabilization_amplification_longterm_trends:
                 plt.savefig(outf)
                 plt.close()
 
+    def calculate_stabilization_temporal_change_statistic(self):
+        outdir = join(result_root, 'stabilization_temporal_change_statistic')
+        T.mk_dir(outdir)
+        fdir_early = join(data_root, 'zscore_LAI/early_peak')
+        fdir_late = join(data_root, 'zscore_LAI/late')
+        # fdir_late = join(data_root, 'LAI3g_MCD_2003_2018/late')
 
+        # print(len(year_list))
+        # exit()
+        result_dict = {}
+        for f in T.listdir(fdir_early):
+            # if 'MCD' in f:
+            #     continue
+            # if 'Trendy_ensemble' in f:
+            #     continue
+            # if not 'CLM5' in f:
+            #     continue
+            # outdir_i = join(outdir,f.replace('.npy',''))
+            # T.mk_dir(outdir_i)
+            fpath_early = join(fdir_early, f)
+            fpath_late = join(fdir_late, f)
+            early_dict = T.load_npy(fpath_early)
+            late_dict = T.load_npy(fpath_late)
+            for pix in late_dict:
+                vals = late_dict[pix]
+                # print(len(vals))
+                # plt.plot(vals)
+                # plt.show()
+                print(f, len(vals))
+                start_year = 2003
+                end_year = 2003 + len(vals) - 1
+                year_list = list(range(start_year, end_year + 1))
+                print(len(year_list))
+                break
+            # exit()
+            all_dict = {
+                'early': early_dict,
+                'late': late_dict,
+            }
+            df = T.spatial_dics_to_df(all_dict)
+            # T.print_head_n(df)
+            # exit()
+            variable_list = ['early', 'late']
+            df = Dataframe_per_value_transform(df, variable_list, start_year, end_year).df
+            if len(df) == 0:
+                raise
+            # T.print_head_n(df)
+            # exit()
+            # df = df.dropna(how='any',subset=variable_list)
+            df = build_dataframe().add_landcover_GLC_data_to_df(df)
+            df = build_dataframe().add_max_trend_to_df(df)
+            df = build_dataframe().add_aridity_to_df(df)
+            df = build_dataframe().add_HI_class_to_df(df)
+            df = build_dataframe().add_row_to_df(df)
+            df = build_dataframe().add_NDVI_mask(df)
+            df = build_dataframe().add_P_PET_to_df(df)
+            df = build_dataframe().add_P_PET_reclass_to_df(df)
 
-    def plot_time_series_zscore(self):  ###plot time series
-        f = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\zscore_result_statistical_annual_average_new.npy'
-        dic = T.load_npy(f)
-        period_name = ['early_peak', 'late', 'early_peak_late']
+            # T.print_head_n(df)
+            # exit()
+            for AI in ['Arid', 'Humid']:
+                df_AI = df[df['AI_class'] == AI]
+                df_AI = df_AI[df_AI['early'] >= 0]
+                # year_list = list(range(2002,2021))
+                year_list_obj = []
+                for year in year_list:
+                    year_list_obj.append(int(year))
 
+                bar_amplification = []
+                bar_weak_stabilization = []
+                bar_strong_stabilization = []
+                for year in year_list:
+                    df_year = df_AI[df_AI['year'] == year]
+                    early_vals = df_year['early'].tolist()
+                    late_vals = df_year['late'].tolist()
+                    father = len(early_vals)
+                    son_amplification = 0
+                    son_weak_stabilization = 0
+                    son_strong_stabilization = 0
+                    for i in range(len(early_vals)):
+                        early_val = early_vals[i]
+                        late_val = late_vals[i]
+                        if late_val > early_val:
+                            son_amplification += 1
+                        elif late_val < early_val and late_val > 0:
+                            son_weak_stabilization += 1
+                        else:
+                            son_strong_stabilization += 1
+                    ratio_amplification = son_amplification / father
+                    ratio_weak_stabilization = son_weak_stabilization / father
+                    ratio_strong_stabilization = son_strong_stabilization / father
+                    bar_amplification.append(ratio_amplification)
+                    bar_weak_stabilization.append(ratio_weak_stabilization)
+                    bar_strong_stabilization.append(ratio_strong_stabilization)
+                bar_amplification = np.array(bar_amplification)
+                bar_weak_stabilization = np.array(bar_weak_stabilization)
+                bar_strong_stabilization = np.array(bar_strong_stabilization)
+                # plt.figure(figsize=(18*centimeter_factor,6*centimeter_factor))
+                # plt.plot(year_list,bar_amplification,label='amplification')
+                # plt.plot(year_list,bar_weak_stabilization,label='weak_stabilization')
+                # plt.plot(year_list,bar_strong_stabilization,label='strong_stabilization')
+                a_amp, _, _, p_amp = T.nan_line_fit(year_list, bar_amplification)
+                a_weak_stab, _, _, p_weak_stab = T.nan_line_fit(year_list, bar_weak_stabilization)
+                a_strong_stab, _, _, p_strong_stab = T.nan_line_fit(year_list, bar_strong_stabilization)
+                key = f'{AI}-{f.replace(".npy", "")}'
+                result_dict[key] = {
+                    'a_amp': a_amp,
+                    'a_weak_stab': a_weak_stab,
+                    'a_strong_stab': a_strong_stab,
+                    'p_amp': p_amp,
+                    'p_weak_stab': p_weak_stab,
+                    'p_strong_stab': p_strong_stab
+                }
+        df_result = T.dic_to_df(result_dict, 'model')
+        T.print_head_n(df_result)
+        outf = join(outdir, 'result.df')
+        T.save_df(df_result, outf)
+        T.df_to_excel(df_result, outf)
 
-        product_list = ['MCD', 'average', 'CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
-                        'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
-                        'LPX-Bern_S2_lai', 'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
-        color_list = ['green', 'black']
-        color_list.extend('silver' for i in range(len(product_list) - 2))
-        linewidth_list = [2, 2, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
-                          0.5]
-
-        centimeter = 1 / 2.54
-
-
-        fig = plt.figure(figsize=(18 * centimeter, 12 * centimeter))
-        i = 1
-
-        for region in ['Humid', 'Dryland']:
-
-            for period in period_name:
-                ax = fig.add_subplot(2, 3, i)
-
-                flag = 0
-                for variable in product_list:
-
-                    color = color_list[flag]
-                    linewidth = linewidth_list[flag]
-                    if flag >= 2:
-                        zorder = 0
-                    else:
-                        zorder = 1
-
-                    flag += 1
-                    key = f'{region}_{period}_{variable}'
-                    result_i = dic[key]
-                    mean_value_yearly = result_i['mean_value_yearly']
-                    # up_list = result_i['up_list']
-                    # bottom_list = result_i['bottom_list']
-                    fit_value_yearly = result_i['fit_value_yearly']
-                    k_value = result_i['k_value']
-                    p_value = result_i['p_value']
-                    print(f'{region}_{variable}', 'k={:0.2f},p={:0.4f}'.format(k_value, p_value))
-                    yearlist=range(2003,2022)
-
-                    plt.plot(yearlist,mean_value_yearly, label=variable, c=color, zorder=zorder, linewidth=linewidth)
-                    plt.plot(yearlist,fit_value_yearly, linestyle='--', label='k={:0.2f},p={:0.2f}'.format(k_value, p_value),
-                             c=color, linewidth=linewidth)
-                    # print(f'{region}_{variable}','k={:0.2f},p={:0.4f}'.format(k_value, p_value))
-                    # plt.fill_between(range(len(mean_value_yearly)), up_list, bottom_list, alpha=0.1, zorder=-1,
-                    #                  color=color)
-                    #### show text p value trend only show Trendy_ensemble and MCD
-                    if variable == 'average' or variable == 'MCD':
-                        ## position of text
-                        x = 0
-                        y = mean_value_yearly[0]+0.7
-                        # plt.text(x, y, 'k={:0.2f},p={:0.2f}'.format(k_value, p_value), fontsize=10, color=color)
-
-
-                plt.ylabel('zscore')
-                plt.xlabel('year')
-                major_xticks = np.arange(2003, 2022, 5)
-                plt.xticks(major_xticks, rotation=45)
-                plt.title(f'{period}_{region}')
-
-                # major_yticks = np.arange(-10, 15, 5)
-                major_yticks = np.arange(-0.8, 0.9, 0.4)
-                plt.ylim(-0.8, 0.8)
-                # major_ticks = np.arange(0, 40, 5)  ### 根据数据长度修改这里
-                ax.set_xticks(major_xticks)
-                ax.set_yticks(major_yticks)
-                plt.grid(which='major', alpha=0.5)
-                plt.tight_layout()
-                i = i + 1
-        outdir = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\'
-        T.mk_dir(outdir, force=1)
-        outf = outdir + 'zscore_result_statistical_annual_average_new.pdf'
-        plt.savefig(outf)
-        plt.close()
-
-
-        plt.show()
 
 def main():
     ## 1. create spatial map and heatmap of frequency of stabilization and amplification [figure1]
@@ -1860,10 +2158,10 @@ def main():
     # SEM().run()
 
     ## 3. compare the SEM result between observation and model [figure3]
-    SEM_anaysis().run()
+    # SEM_anaysis().run()
 
     ## 4. create spatial map of frequency of stabilization and amplification [figure4]
-    # Stabilization_amplification_longterm_trends().run()
+    Stabilization_amplification_longterm_trends().run()
 
 
 
