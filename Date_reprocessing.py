@@ -3645,8 +3645,8 @@ class long_term_trends():   ### early-and peak vs. late and early-peak and late 
         # self.calculate_average(df)
 
 
-        self.plot_time_series_zscore()
-        # self.create_new_df_before_plot()
+        # self.plot_time_series_zscore()
+        self.create_new_df_before_plot()
         # self.plot_feedback_vs_trend()
         # self.barplot()
 

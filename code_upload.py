@@ -215,7 +215,7 @@ class build_dataframe():
         f =data_root+rf'/Base_data/NDVI_mask.tif'
 
 
-        array, originX, originY, pixelWidth, pixelHeight = to_raster.raster2array(f)
+        array, originX, originY, pixelWidth, pixelHeight = ToRaster().raster2array(f)
         array = np.array(array, dtype=float)
         val_dic = DIC_and_TIF().spatial_arr_to_dic(array)
         f_name = 'NDVI_MASK'
@@ -1695,11 +1695,27 @@ class Stabilization_amplification_longterm_trends:
 
         pass
     def run(self):
-        ##1 based on the zscore result, calculate the long term trend
+        ##1 based on the zscore result, calculate the long term trend for models and observation and save results
         # self.calcualte_long_term_trend()
+
+        ##2 calculate the average zscore time series for individual product and save results
         # self.calculate_average()
-        self.plot_time_series_zscore()
+
+        ##3 plot the time series of zscore of individual product and observation
+        # self.plot_time_series_zscore()
+
+        ##4 calculate the temporal change of stabilization trends
         # self.calculate_stabilization_temporal_change_statistic()
+
+        ## 5 composite the results of  stabilization trends and LAI trends over 2003-2021
+        # self.zscore_vs_stabilization_composition()
+
+        ##5 plot the feedback vs trend
+        self.plot_feedback_vs_trend()
+
+
+
+        ## 5
         # self.plot_feedback_vs_trend()
 
         pass
@@ -1743,7 +1759,7 @@ class Stabilization_amplification_longterm_trends:
                         'p_value': p_value,
 
                     }
-        outdir = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\'
+        outdir = result_root + rf'\zscore_result_statistical_annual\\'
         T.mk_dir(outdir, force=1)
         outf = outdir + 'zscore_result_statistical_annual.npy'
         T.save_npy(result_dic, outf)
@@ -1823,7 +1839,7 @@ class Stabilization_amplification_longterm_trends:
     def calculate_average(self):## 实现计算中位数 of individual product
         import pprint
         df= T.load_df(result_root + rf'\\Data_frame\zscore\\zscore.df')
-        f_individual = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\zscore_result_statistical_annual.npy'
+        f_individual = result_root + rf'\zscore_result_statistical_annual\\zscore_result_statistical_annual.npy'
         dic_individual = T.load_npy(f_individual)
         # print(dic_individual)
         # pprint.pprint(dic_individual)
@@ -1870,7 +1886,7 @@ class Stabilization_amplification_longterm_trends:
                 # dic_individual.update(result_dic)
                 # exit()
 
-        outdir = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\'
+        outdir = result_root + rf'\zscore_result_statistical_annual\\'
         T.mk_dir(outdir, force=1)
         outf = outdir + 'zscore_result_statistical_annual_average.npy'
         T.save_npy(dic_individual, outf)
@@ -1879,7 +1895,7 @@ class Stabilization_amplification_longterm_trends:
 
 
     def plot_time_series_zscore(self):  ###plot time series
-        f = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\zscore_result_statistical_annual_average.npy'
+        f = result_root + rf'\zscore_result_statistical_annual\\zscore_result_statistical_annual_average.npy'
         dic = T.load_npy(f)
         period_name = ['early_peak', 'late', 'early_peak_late']
 
@@ -1930,12 +1946,7 @@ class Stabilization_amplification_longterm_trends:
                     # print(f'{region}_{variable}','k={:0.2f},p={:0.4f}'.format(k_value, p_value))
                     # plt.fill_between(range(len(mean_value_yearly)), up_list, bottom_list, alpha=0.1, zorder=-1,
                     #                  color=color)
-                    # #### show text p value trend only show Trendy_ensemble and MCD
-                    # if variable == 'average' or variable == 'MCD':
-                    #     ## position of text
-                    #     x = 0
-                    #     y = mean_value_yearly[0]+0.7
-                    #     # plt.text(x, y, 'k={:0.2f},p={:0.2f}'.format(k_value, p_value), fontsize=10, color=color)
+
 
 
                 plt.ylabel('zscore')
@@ -1956,79 +1967,13 @@ class Stabilization_amplification_longterm_trends:
         plt.show()
         # outdir = result_root + rf'\\Data_frame\zscore_result_statistical_annual\\'
         # T.mk_dir(outdir, force=1)
-        # outf = outdir + 'zscore_result_statistical_annual_average_new.pdf'
+        # outf = outdir + 'zscore_result_statistical_annual_average.pdf'
         # plt.savefig(outf)
         # plt.close()
 
 
 
 
-    def plot_feedback_vs_trend(self):
-        dff=result_root+rf'Data_frame\zscore_result_statistical_annual\frequency_temporal_change_TRENDY_individual_statistic\\result_new.df'
-        df=T.load_df(dff)
-        marker_list = ['*','o', 's', 'D', 'v', 'p', 'P', '^', 'X', 'd', '<', '>']
-
-
-        color_list = T.gen_colors(12)
-
-        ##plot x =feedback and y = trend
-        periods = ['early_peak_late','late']
-        product_list = ['MCD', 'CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
-            'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
-            'LPX-Bern_S2_lai', 'VISIT_S2_lai',  ]
-        region_list=['Humid','Dryland']
-
-        for region in region_list:
-
-            for period in periods:
-                x_list = []
-                y_list = []
-                label_list = []
-                p_value_list_sta=[]
-                p_value_list_trend=[]
-                flag = 0
-                for variable in product_list:
-
-                    key=f'{region}-{variable}'
-                    df_pick=df[df['model']==key]
-                    y=df_pick[f'k_value_{period}'].to_list()
-                    x=df_pick[f'a_strong_stab'].to_list()
-                    x=x[0]*100
-                    y=y[0]
-
-                    p_value_sta=df_pick[f'p_strong_stab'].to_list()
-                    p_value_trend=df_pick[f'p_value_{period}'].to_list()
-                    x_list.append(x)
-
-                    y_list.append(y)
-                    p_value_list_sta.append(p_value_sta)
-                    p_value_list_trend.append(p_value_trend)
-
-                    label_list.append(f'{region}-{variable}-{period}')
-                centimeter = 2.54
-                plt.figure(figsize=(9/centimeter, 7/centimeter))
-
-                for i in range(len(x_list)):
-                    x=x_list[i]
-                    y=y_list[i]
-                    label=label_list[i]
-                    p_value_trend=p_value_list_trend[i]
-
-                    p_value_sta=p_value_list_sta[i]
-                    plt.scatter(x,y,label=label,marker=marker_list[flag],color=color_list[flag])
-                    plt.text(x, y, f'P={p_value_trend[0]:0.2f}\nP={p_value_sta[0]:0.2f}', fontsize=6, color='black')
-
-                    flag+=1
-
-                plt.title(f'{region}-{period}')
-                plt.xlabel('strong_stabilization_feedback_trend (%/year)')
-                plt.ylabel('interannual_growing_season_trend(/year)')
-                plt.legend()
-                plt.tight_layout()
-                outdir=result_root+rf'\\Data_frame\zscore_result_statistical_annual\frequency_temporal_change_TRENDY_individual_statistic\\'
-                outf=join(outdir,f'{region}_{period}.pdf')
-                plt.savefig(outf)
-                plt.close()
 
     def calculate_stabilization_temporal_change_statistic(self):
         outdir = join(result_root, 'stabilization_temporal_change_statistic')
@@ -2041,14 +1986,7 @@ class Stabilization_amplification_longterm_trends:
         # exit()
         result_dict = {}
         for f in T.listdir(fdir_early):
-            # if 'MCD' in f:
-            #     continue
-            # if 'Trendy_ensemble' in f:
-            #     continue
-            # if not 'CLM5' in f:
-            #     continue
-            # outdir_i = join(outdir,f.replace('.npy',''))
-            # T.mk_dir(outdir_i)
+
             fpath_early = join(fdir_early, f)
             fpath_late = join(fdir_late, f)
             early_dict = T.load_npy(fpath_early)
@@ -2058,7 +1996,7 @@ class Stabilization_amplification_longterm_trends:
                 # print(len(vals))
                 # plt.plot(vals)
                 # plt.show()
-                print(f, len(vals))
+                # print(f, len(vals))
                 start_year = 2003
                 end_year = 2003 + len(vals) - 1
                 year_list = list(range(start_year, end_year + 1))
@@ -2079,19 +2017,24 @@ class Stabilization_amplification_longterm_trends:
             # T.print_head_n(df)
             # exit()
             # df = df.dropna(how='any',subset=variable_list)
-            df = build_dataframe().add_landcover_GLC_data_to_df(df)
+
             df = build_dataframe().add_max_trend_to_df(df)
-            df = build_dataframe().add_aridity_to_df(df)
-            df = build_dataframe().add_HI_class_to_df(df)
-            df = build_dataframe().add_row_to_df(df)
+            df = build_dataframe().add_row(df)
+
+            df = build_dataframe().add_max_trend_to_df(df)
+
             df = build_dataframe().add_NDVI_mask(df)
-            df = build_dataframe().add_P_PET_to_df(df)
-            df = build_dataframe().add_P_PET_reclass_to_df(df)
+
+            df = build_dataframe().add_GLC_landcover_data_to_df(df)
+
+            P_PET_dic = build_dataframe().P_PET_ratio(build_dataframe().P_PET_fdir)
+            P_PET_reclass_dic = build_dataframe().P_PET_reclass_2(P_PET_dic)
+            df = T.add_spatial_dic_to_df(df, P_PET_reclass_dic, 'HI_class')
 
             # T.print_head_n(df)
             # exit()
-            for AI in ['Arid', 'Humid']:
-                df_AI = df[df['AI_class'] == AI]
+            for AI in ['Dryland', 'Humid']:
+                df_AI = df[df['HI_class'] == AI]
                 df_AI = df_AI[df_AI['early'] >= 0]
                 # year_list = list(range(2002,2021))
                 year_list_obj = []
@@ -2145,9 +2088,416 @@ class Stabilization_amplification_longterm_trends:
                 }
         df_result = T.dic_to_df(result_dict, 'model')
         T.print_head_n(df_result)
-        outf = join(outdir, 'result.df')
+        outf = join(outdir, 'stabilization_temporal_change_statistic.df')
         T.save_df(df_result, outf)
         T.df_to_excel(df_result, outf)
+
+    def zscore_vs_stabilization_composition(self):  ### compose stabilization trends and LAI trends over 2003-2021
+        f_trend = result_root + rf'\zscore_result_statistical_annual\\zscore_result_statistical_annual.npy'
+        dic_trend = T.load_npy(f_trend)
+        dff=result_root+rf'\stabilization_temporal_change_statistic\stabilization_temporal_change_statistic.df'
+        df=T.load_df(dff)
+        outdir=result_root+rf'\zscore_vs_stabilization_composition\\'
+        T.mk_dir(outdir,force=1)
+        dff_new = outdir + 'zscore_vs_stabilization_composition.df'
+        period_name = ['early_peak', 'late','early_peak_late']
+        product_list = ['MCD',  'CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
+                        'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
+                        'LPX-Bern_S2_lai', 'VISIT_S2_lai', 'YIBs_S2_Monthly_lai', ]
+        # T.rename_dataframe_columns()
+        model_name = df['model'].to_list()
+        new_model_name_list = []
+        for model in model_name:
+            new_model_name = model.replace('Arid-', 'Dryland-')
+            new_model_name_list.append(new_model_name)
+        df = df.drop(columns='model')
+        df['model'] = new_model_name_list
+        # T.print_head_n(df)
+        # exit()
+        dict_result = {}
+
+
+        for region in ['Humid', 'Dryland']:
+
+            for variable in product_list:
+                dict_j = {}
+                new_key = f'{region}-{variable}'
+
+                for period in period_name:
+
+                    key = f'{region}_{period}_{variable}'
+
+                    result_i = dic_trend[key]
+                    k_value = result_i['k_value']
+                    p_value = result_i['p_value']
+                    dict_i = {
+                        f'k_value_{period}': k_value,
+                        f'p_value_{period}': p_value,
+                    }
+                    dict_j.update(dict_i)
+                dict_result[new_key]=dict_j
+
+        df_result = T.dic_to_df(dict_result,'model')
+        # T.print_head_n(df_result)
+        # exit()
+        model_list = df_result['model'].to_list()
+        print(model_list)
+        T.print_head_n(df_result)
+        ###save to df
+        # df = pd.merge(df, df_result, on='model', how='left')
+        # df_merge = pd.DataFrame()
+        df_list = [df_result]
+        print('-------------------')
+        T.print_head_n(df)
+        print('-------------------')
+        T.print_head_n(df_result)
+        df_merge = T.join_df_list(df,df_list,'model')
+        df_merge = df_merge.dropna(how='any')
+        T.print_head_n(df_merge)
+
+        T.save_df(df_merge, dff_new)
+        ##to excel
+        T.df_to_excel(df_merge,dff_new, n=1000, random=False)
+
+    def plot_feedback_vs_trend(self):
+        dff=result_root+rf'\zscore_vs_stabilization_composition\\zscore_vs_stabilization_composition.df'
+        df=T.load_df(dff)
+        marker_list = ['*','o', 's', 'D', 'v', 'p', 'P', '^', 'X', 'd', '<', '>']
+
+
+        color_list = T.gen_colors(12)
+
+        ##plot x =feedback and y = trend
+        periods = ['late']
+        product_list = ['MCD', 'CABLE-POP_S2_lai', 'CLASSIC_S2_lai', 'CLM5', 'IBIS_S2_lai',
+            'ISAM_S2_LAI', 'ISBA-CTRIP_S2_lai', 'JSBACH_S2_lai',
+            'LPX-Bern_S2_lai', 'VISIT_S2_lai',  ]
+        region_list=['Humid','Dryland']
+
+        for region in region_list:
+
+            for period in periods:
+                x_list = []
+                y_list = []
+                label_list = []
+                p_value_list_sta=[]
+                p_value_list_trend=[]
+                flag = 0
+                for variable in product_list:
+
+                    key=f'{region}-{variable}'
+                    df_pick=df[df['model']==key]
+                    y=df_pick[f'k_value_{period}'].to_list()
+                    x=df_pick[f'a_strong_stab'].to_list()
+                    x=x[0]*100
+                    y=y[0]
+
+                    p_value_sta=df_pick[f'p_strong_stab'].to_list()
+                    p_value_trend=df_pick[f'p_value_{period}'].to_list()
+                    x_list.append(x)
+
+                    y_list.append(y)
+                    p_value_list_sta.append(p_value_sta)
+                    p_value_list_trend.append(p_value_trend)
+
+                    label_list.append(f'{region}-{variable}-{period}')
+                centimeter = 2.54
+                plt.figure(figsize=(9/centimeter, 7/centimeter))
+
+                for i in range(len(x_list)):
+                    x=x_list[i]
+                    y=y_list[i]
+                    label=label_list[i]
+                    p_value_trend=p_value_list_trend[i]
+
+                    p_value_sta=p_value_list_sta[i]
+                    plt.scatter(x,y,label=label,marker=marker_list[flag],color=color_list[flag])
+                    plt.text(x, y, f'P={p_value_trend[0]:0.2f}\nP={p_value_sta[0]:0.2f}', fontsize=6, color='black')
+
+                    flag+=1
+
+                plt.title(f'{region}-{period}')
+                plt.xlabel('strong_stabilization_feedback_trend (%/year)')
+                plt.ylabel('late season LAI trend (%/year)')
+                plt.legend()
+                plt.tight_layout()
+                plt.show()
+                # outdir=result_root+rf'\\zscore_vs_stabilization_composition\\'
+                # outf=join(outdir,f'{region}_{period}.pdf')
+                # plt.savefig(outf)
+                # plt.close()
+
+
+
+class Tools:
+    def load_df(self, f):
+        df = pd.read_pickle(f)
+        df = pd.DataFrame(df)
+        return df
+        pass
+
+    def save_df(self, df, outf):
+        df.to_pickle(outf)
+
+    def df_to_excel(self, df, dff, n=1000, random=False):
+        if n == None:
+            df.to_excel('{}.xlsx'.format(dff))
+        else:
+            if random:
+                df = df.sample(n=n, random_state=1)
+                df.to_excel('{}.xlsx'.format(dff))
+            else:
+                df = df.head(n)
+                df.to_excel('{}.xlsx'.format(dff))
+
+class ToRaster:
+    def __init__(self):
+
+        pass
+
+    def raster2array(self, rasterfn):
+        '''
+        create array from raster
+        Agrs:
+            rasterfn: tiff file path
+        Returns:
+            array: tiff data, an 2D array
+        '''
+        raster = gdal.Open(rasterfn)
+        geotransform = raster.GetGeoTransform()
+        originX = geotransform[0]
+        originY = geotransform[3]
+        pixelWidth = geotransform[1]
+        pixelHeight = geotransform[5]
+        band = raster.GetRasterBand(1)
+        array = band.ReadAsArray()
+        array = np.asarray(array)
+        del raster
+        return array, originX, originY, pixelWidth, pixelHeight
+
+    def get_ndv(self, rasterfn):
+        raster = gdal.Open(rasterfn)
+        NDV = raster.GetRasterBand(1).GetNoDataValue()
+        del raster
+        return NDV
+
+    def array2raster_GDT_Byte(self, newRasterfn, longitude_start, latitude_start, pixelWidth, pixelHeight, array):
+        cols = array.shape[1]
+        rows = array.shape[0]
+        originX = longitude_start
+        originY = latitude_start
+        # open geotiff
+        driver = gdal.GetDriverByName('GTiff')
+        if os.path.exists(newRasterfn):
+            os.remove(newRasterfn)
+        outRaster = driver.Create(newRasterfn, cols, rows, 1, gdal.GDT_Byte)
+        # Add Color Table
+        # outRaster.GetRasterBand(1).SetRasterColorTable(ct)
+        outRaster.SetGeoTransform((originX, pixelWidth, 0, originY, 0, pixelHeight))
+        # Write Date to geotiff
+        outband = outRaster.GetRasterBand(1)
+        ndv = 255
+        outband.SetNoDataValue(ndv)
+        outband.WriteArray(array)
+        outRasterSRS = osr.SpatialReference()
+        outRasterSRS.ImportFromEPSG(4326)
+        outRaster.SetProjection(outRasterSRS.ExportToWkt())
+        # Close Geotiff
+        outband.FlushCache()
+        del outRaster
+
+    def array2raster(self, newRasterfn, longitude_start, latitude_start, pixelWidth, pixelHeight, array, ndv=-999999):
+        cols = array.shape[1]
+        rows = array.shape[0]
+        originX = longitude_start
+        originY = latitude_start
+        # open geotiff
+        driver = gdal.GetDriverByName('GTiff')
+        if os.path.exists(newRasterfn):
+            os.remove(newRasterfn)
+        outRaster = driver.Create(newRasterfn, cols, rows, 1, gdal.GDT_Float32)
+        # outRaster = driver.Create(newRasterfn, cols, rows, 1, gdal.GDT_UInt16)
+        # ndv = 255
+        # Add Color Table
+        # outRaster.GetRasterBand(1).SetRasterColorTable(ct)
+        outRaster.SetGeoTransform((originX, pixelWidth, 0, originY, 0, pixelHeight))
+        # Write Date to geotiff
+        outband = outRaster.GetRasterBand(1)
+
+        outband.SetNoDataValue(ndv)
+        outband.WriteArray(array)
+        outRasterSRS = osr.SpatialReference()
+        outRasterSRS.ImportFromEPSG(4326)
+        outRaster.SetProjection(outRasterSRS.ExportToWkt())
+        # Close Geotiff
+        outband.FlushCache()
+        del outRaster
+
+    def array2raster_polar(self, newRasterfn, longitude_start, latitude_start, pixelWidth, pixelHeight, array,
+                           ndv=-999999):
+        cols = array.shape[1]
+        rows = array.shape[0]
+        originX = longitude_start
+        originY = latitude_start
+        # open geotiff
+        driver = gdal.GetDriverByName('GTiff')
+        if os.path.exists(newRasterfn):
+            os.remove(newRasterfn)
+        outRaster = driver.Create(newRasterfn, cols, rows, 1, gdal.GDT_Float32)
+        # Add Color Table
+        # outRaster.GetRasterBand(1).SetRasterColorTable(ct)
+        outRaster.SetGeoTransform((originX, pixelWidth, 0, originY, 0, pixelHeight))
+        # Write Date to geotiff
+        outband = outRaster.GetRasterBand(1)
+
+        outband.SetNoDataValue(ndv)
+        outband.WriteArray(array)
+        # outRasterSRS.ImportFromEPSG(4326)
+        # outRaster.SetProjection(outRasterSRS.ExportToWkt())
+        # ref = osr.SpatialReference()
+        # outRasterSRS = osr.SpatialReference()
+        # ref_chr = r"PROJCS[\"NSIDC EASE-Grid North\",GEOGCS[\"Unspecified datum based upon the International 1924 Authalic Sphere\",DATUM[\"Not_specified_based_on_International_1924_Authalic_Sphere\",SPHEROID[\"International 1924 Authalic Sphere\",6371228,0,AUTHORITY[\"EPSG\",\"7057\"]],TOWGS84[-9036842.762,25067.525,0,9036842.763000002,0,-25067.525],AUTHORITY[\"EPSG\",\"6053\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4053\"]],PROJECTION[\"Lambert_Azimuthal_Equal_Area\"],PARAMETER[\"latitude_of_center\",90],PARAMETER[\"longitude_of_center\",0],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"X\",EAST],AXIS[\"Y\",NORTH],AUTHORITY[\"EPSG\",\"3408\"]]"
+        # ref_chr = r'PROJCS["Grenada 1953 / British West Indies Grid",GEOGCS["Grenada 1953",DATUM["Grenada_1953",SPHEROID["Clarke 1880 (RGS)",6378249.145,293.465,AUTHORITY["EPSG","7012"]],TOWGS84[72,213.7,93,0,0,0,0],AUTHORITY["EPSG","6603"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.01745329251994328,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4603"]],UNIT["metre",1,AUTHORITY["EPSG","9001"]],PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",0],PARAMETER["central_meridian",-62],PARAMETER["scale_factor",0.9995],PARAMETER["false_easting",400000],PARAMETER["false_northing",0],AUTHORITY["EPSG","2003"],AXIS["Easting",EAST],AXIS["Northing",NORTH]]'
+        # ref_chr = r'PROJCS["North_Pole_Lambert_Azimuthal_Equal_Area",GEOGCS["GCS_WGS_1984",DATUM["WGS_1984",SPHEROID["WGS_1984",6378137,298.257223563]],PRIMEM["Greenwich",0],UNIT["Degree",0.017453292519943295]],PROJECTION["Lambert_Azimuthal_Equal_Area"],PARAMETER["False_Easting",0],PARAMETER["False_Northing",0],PARAMETER["Central_Meridian",0],PARAMETER["Latitude_Of_Origin",90],UNIT["Meter",1],AUTHORITY["EPSG","9122"]]'
+        # ref_chr = "PROJCS['North_Pole_Lambert_Azimuthal_Equal_Area',GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Lambert_Azimuthal_Equal_Area'],PARAMETER['False_Easting',0.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',0.0],PARAMETER['Latitude_Of_Origin',90.0],UNIT['Meter',1.0]]"
+        # ref_chr = ref_chr.replace('\\','')
+        # print ref_chr
+        # "PROJCS['North_Pole_Lambert_Azimuthal_Equal_Area',GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Lambert_Azimuthal_Equal_Area'],PARAMETER['False_Easting',0.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',0.0],PARAMETER['Latitude_Of_Origin',90.0],UNIT['Meter',1.0]]"
+        # outRasterSRS.ImportFromWkt(ref_chr)
+        # print outRasterSRS
+        # outRaster.SetProjection(outRasterSRS.ExportToWkt())
+        # outRaster.SetProjection(ref_chr)
+        outband.FlushCache()
+        del outRaster
+
+    def shp_to_raster(self, in_shp, output_raster, pixel_size, in_raster_template=None, ndv=-999999):
+        input_shp = ogr.Open(in_shp)
+        shp_layer = input_shp.GetLayer()
+        if in_raster_template:
+            raster = gdal.Open(in_raster_template)
+            ulx, xres, xskew, uly, yskew, yres = raster.GetGeoTransform()
+            lrx = ulx + (raster.RasterXSize * xres)
+            lry = uly + (raster.RasterYSize * yres)
+            xmin, xmax, ymin, ymax = ulx, lrx, lry, uly
+        else:
+            xmin, xmax, ymin, ymax = shp_layer.GetExtent()
+        ds = gdal.Rasterize(output_raster, in_shp, xRes=pixel_size, yRes=pixel_size,
+                            burnValues=1, noData=ndv, outputBounds=[xmin, ymin, xmax, ymax],
+                            outputType=gdal.GDT_Byte)
+        ds = None
+        return output_raster
+
+    def clip_array(self, in_raster, out_raster, in_shp):
+        ds = gdal.Open(in_raster)
+        ds_clip = gdal.Warp(out_raster, ds, cutlineDSName=in_shp, cropToCutline=True, dstNodata=np.nan)
+        ds_clip = None
+
+    # def clip_array(self, in_raster, out_raster, in_shp):
+    #     in_array, originX, originY, pixelWidth, pixelHeight = self.raster2array(in_raster)
+    #     input_shp = ogr.Open(in_shp)
+    #     shp_layer = input_shp.GetLayer()
+    #     xmin, xmax, ymin, ymax = shp_layer.GetExtent()
+    #     in_shp_encode = in_shp.encode('utf-8')
+    #     originX_str = str(originX)
+    #     originY_str = str(originY)
+    #     pixelWidth_str = str(pixelWidth)
+    #     pixelHeight_str = str(pixelHeight)
+    #     originX_str = originX_str.encode('utf-8')
+    #     originY_str = originY_str.encode('utf-8')
+    #     pixelWidth_str = pixelWidth_str.encode('utf-8')
+    #     pixelHeight_str = pixelHeight_str.encode('utf-8')
+    #     m1 = hashlib.md5(originX_str + originY_str + pixelWidth_str + pixelHeight_str + in_shp_encode)
+    #     md5filename = m1.hexdigest() + '.tif'
+    #     temp_dir = 'temporary_directory/'
+    #     Tools().mkdir(temp_dir)
+    #     temp_out_raster = temp_dir + md5filename
+    #     if not os.path.isfile(temp_out_raster):
+    #         self.shp_to_raster(in_shp, temp_out_raster, pixelWidth, in_raster_template=in_raster, )
+    #     rastered_mask_array = self.raster2array(temp_out_raster)[0]
+    #     in_mask_arr = np.array(rastered_mask_array)
+    #     in_mask_arr[in_mask_arr < -9999] = False
+    #     in_mask_arr = np.array(in_mask_arr, dtype=bool)
+    #     in_array[~in_mask_arr] = np.nan
+    #     lon_list = [xmin, xmax]
+    #     lat_list = [ymin, ymax]
+    #     pix_list = DIC_and_TIF(tif_template=in_raster).lon_lat_to_pix(lon_list, lat_list, isInt=False)
+    #     pix1, pix2 = pix_list
+    #     in_array = in_array[pix2[0]:pix1[0]]
+    #     in_array = in_array.T
+    #     in_array = in_array[pix1[1]:pix2[1]]
+    #     in_array = in_array.T
+    #     longitude_start, latitude_start = xmin, ymax
+    #     self.array2raster(out_raster, longitude_start, latitude_start, pixelWidth, pixelHeight, in_array)
+
+    def mask_array(self, in_raster, out_raster, in_mask_raster):
+        in_arr, originX, originY, pixelWidth, pixelHeight = self.raster2array(in_raster)
+        in_mask_arr, originX, originY, pixelWidth, pixelHeight = self.raster2array(in_mask_raster)
+        in_arr = np.array(in_arr, dtype=float)
+        in_mask_arr = np.array(in_mask_arr)
+        in_mask_arr[in_mask_arr < -9999] = False
+        in_mask_arr = np.array(in_mask_arr, dtype=bool)
+        in_arr[~in_mask_arr] = np.nan
+        longitude_start, latitude_start, pixelWidth, pixelHeight = originX, originY, pixelWidth, pixelHeight
+        self.array2raster(out_raster, longitude_start, latitude_start, pixelWidth, pixelHeight, in_arr)
+
+    def resample_reproj(self, in_tif, out_tif, res, srcSRS='EPSG:4326', dstSRS='EPSG:4326'):
+        dataset = gdal.Open(in_tif)
+        gdal.Warp(out_tif, dataset, xRes=res, yRes=res, srcSRS=srcSRS, dstSRS=dstSRS)
+
+
+
+class Dataframe_per_value_transform:
+
+    def __init__(self, df, variable_list, start_year, end_year):
+        self.start_year = start_year
+        self.end_year = end_year
+        self.variable_list = variable_list
+        self.df_in = df
+        self.dataframe_per_value()
+        pass
+
+    def init_void_dataframe(self):
+        void_spatial_dict = DIC_and_TIF().void_spatial_dic()
+        year_list = list(range(self.start_year, self.end_year + 1))
+        year_list_all = []
+        pix_list_all = []
+        for pix in void_spatial_dict:
+            for year in year_list:
+                year_list_all.append(year)
+                pix_list_all.append(pix)
+        df = pd.DataFrame()
+        df['year'] = year_list_all
+        df['pix'] = pix_list_all
+        return df, year_list
+
+    def dataframe_per_value(self):
+        variable_list = self.variable_list
+        df_, year_list = self.init_void_dataframe()
+        pix_list = Tools().get_df_unique_val_list(df_, 'pix')
+        nan_list = [np.nan] * len(year_list)
+        all_data = {}
+        for col in variable_list:
+            spatial_dict = Tools().df_to_spatial_dic(self.df_in, col)
+            all_data[col] = spatial_dict
+        for var_i in tqdm(variable_list):
+            spatial_dict_i = all_data[var_i]
+            val_list_all = []
+            for pix in pix_list:
+                if not pix in spatial_dict_i:
+                    val_list_all.extend(nan_list)
+                    continue
+                vals = spatial_dict_i[pix]
+                if type(vals) == float:
+                    val_list_all.extend(nan_list)
+                    continue
+                if not len(vals) == len(year_list):
+                    val_list_all.extend(nan_list)
+                    continue
+                for i, v in enumerate(vals):
+                    val_list_all.append(v)
+            df_[var_i] = val_list_all
+        df = df_.dropna(subset=variable_list, how='all')
+        self.df = df
 
 
 def main():
@@ -2166,7 +2516,7 @@ def main():
 
 
 
-    pass
+
 
 if __name__ == '__main__':
     main()
