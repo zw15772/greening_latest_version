@@ -6,7 +6,7 @@ import PIL.Image as Image
 import semopy
 T = Tools()
 
-this_root = rf'D:\Greening\\Upload_samples\\'
+this_root = rf'C:\Users\wenzhang1\PycharmProjects\Seasonal-stabilization-slowed-down-greening\\'
 data_root = this_root + 'Data\\'
 result_root = this_root + 'Result\\'
 
@@ -336,13 +336,8 @@ class build_dataframe():
 
     def rename_dataframe_columns(self,df):
         df.rename(columns={'late_LPX-Bern_S2_lai': 'late_LPX_Bern_S2_lai',
-
-
-
                           }, inplace=True)
         return df
-
-
 
 
 class frequency_analysis():  # Amplification and Stabilization analysis
@@ -353,8 +348,7 @@ class frequency_analysis():  # Amplification and Stabilization analysis
         self.this_class_arr = result_root + 'Data_frame\\Frequency\\MCD\\'
         self.this_class_tif = result_root + 'Data_frame\\Frequency\\MCD\\tif\\'
 
-        # self.dff = self.this_class_arr + 'frequency_dataframe.df'
-        self.dff = self.this_class_arr + 'frequency_dataframe2.df'
+        self.dff = self.this_class_arr + 'frequency_dataframe.df'
 
         Tools().mkdir(self.this_class_arr, force=True)
 
@@ -783,8 +777,7 @@ class frequency_analysis():  # Amplification and Stabilization analysis
 class SEM:
     def __init__(self):
         # This class is used to calculate the structural equation model
-        self.this_class_arr = data_root + r'\detrend_zscore\\'
-        self.dff = self.this_class_arr + 'detrend_zscore.df'
+
         self.outdir = result_root + 'SEM//'
         T.mkdir(self.outdir, force=True)
 
@@ -792,7 +785,7 @@ class SEM:
 
     def run(self):
         ## 1. load dataframe
-        df, dff = self.__load_df()
+        df = self.__load_df()
         ## 2. model description
         des = self.model_description_detrend()
 
@@ -805,10 +798,11 @@ class SEM:
         pass
 
     def __load_df(self):
-        dff = self.dff
-        df = T.load_df(dff)
+        df_dir = join(data_root,'dataframe_detrend_zscore_LAI_split')
+        df = load_split_dataframe(df_dir)
+        # df = T.load_df(dff)
 
-        return df, dff
+        return df
         # return df_early,dff
 
     def clean_df(self, df):
@@ -866,8 +860,8 @@ class SEM:
         T.save_df(result, outf + '.df')
         T.df_to_excel(result, outf + '.xlsx')
 
-        # outf = self.outdir + 'water_limited_MCD'
-        # semopy.report(mod, outf)
+        outf = self.outdir + 'water_limited_MCD'
+        semopy.report(mod, outf)
 
 
 class SEM_anaysis():  #### SEM result comparision between observation and model
@@ -1058,7 +1052,8 @@ class Stabilization_amplification_longterm_trends:
 
 
     def calcualte_long_term_trend(self):
-        df=T.load_df(result_root+rf'\\Data_frame\zscore\\zscore.df')
+        df_dir = join(data_root,'dataframe_zscore_LAI_split')
+        df=load_split_dataframe(df_dir)
 
         df = df[df['row'] < 120]
 
@@ -1173,8 +1168,10 @@ class Stabilization_amplification_longterm_trends:
         return mean_value_yearly, up_list, bottom_list, fit_value_yearly, k_value, p_value
         # exit()
     def calculate_average(self):
-        import pprint
-        df= T.load_df(result_root + rf'\\Data_frame\zscore\\zscore.df')
+
+
+        df_dir = join(data_root, 'dataframe_zscore_LAI_split')
+        df = load_split_dataframe(df_dir)
         f_individual = result_root + rf'\zscore_result_statistical_annual\\zscore_result_statistical_annual.npy'
         dic_individual = T.load_npy(f_individual)
         # print(dic_individual)
@@ -1617,6 +1614,37 @@ class Dataframe_per_value_transform:
         self.df = df
 
 
+def split_dataframe():
+    # outdir = r"C:\Users\wenzhang1\PycharmProjects\Seasonal-stabilization-slowed-down-greening\Data\need_to_split\dataframe_zscore_LAI_split"
+    outdir = r"C:\Users\wenzhang1\PycharmProjects\Seasonal-stabilization-slowed-down-greening\Data\need_to_split\dataframe_detrend_zscore_LAI_split"
+    split_num = 5
+    # fpath = rf"C:\Users\wenzhang1\PycharmProjects\Seasonal-stabilization-slowed-down-greening\Data\need_to_split\dataframe_zscore_LAI\zscore.df"
+
+    fpath = r"C:\Users\wenzhang1\PycharmProjects\Seasonal-stabilization-slowed-down-greening\Data\need_to_split\dataframe_detrend_zscore_LAI\detrend_zscore.df"
+    df = T.load_df(fpath)
+    T.print_head_n(df)
+    df_list = np.array_split(df, split_num)
+    flag = 1
+    for df_i in df_list:
+        T.print_head_n(df_i)
+        outf = join(outdir, f'zscore_{flag}.df')
+        T.save_df(df_i, outf)
+        flag += 1
+
+    pass
+
+def load_split_dataframe(fdir):
+    # fdir = r"C:\Users\wenzhang1\PycharmProjects\Seasonal-stabilization-slowed-down-greening\Data\need_to_split\dataframe_zscore_LAI_split"
+    df_list = []
+    for f in T.listdir(fdir):
+
+        dff = join(fdir, f)
+        df = T.load_df(dff)
+        df_list.append(df)
+    df_total = pd.concat(df_list)
+    T.print_head_n(df_total)
+    return df_total
+
 def main():
     ## 1. create spatial map and heatmap of frequency of stabilization and amplification [figure1]
     # frequency_analysis().run()
@@ -1628,7 +1656,7 @@ def main():
     # SEM_anaysis().run()
 
     ## 4. create spatial map of frequency of stabilization and amplification [figure4]
-    # Stabilization_amplification_longterm_trends().run()
+    Stabilization_amplification_longterm_trends().run()
 
     pass
 
