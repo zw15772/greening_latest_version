@@ -88,7 +88,7 @@ class build_dataframe():
         change_rate_list = []
         year = []
         f_name = f.split('\\')[-2]+'_'+f.split('\\')[-1].split('.')[0]
-        print(f_name)
+        # print(f_name)
 
         for pix in tqdm(dic):
             time_series = dic[pix]
@@ -109,7 +109,7 @@ class build_dataframe():
         # df.to_excel(outf+'.xlsx')
         return df
 
-    def foo2(self, df):  # 新建trend
+    def foo2(self, df):
 
         f = 'zscore\daily_Y\peak/during_peak_LAI3g_zscore.npy'
         val_array = np.load(f)
@@ -140,7 +140,7 @@ class build_dataframe():
                 NDVI_dic = T.load_npy(fdir+f)
 
                 f_name = fdir.split('\\')[-3]+'_'+f.split('\\')[-1].split('.')[0]
-                print(f_name)
+                # print(f_name)
 
                 NDVI_list = []
                 for i, row in tqdm(df.iterrows(), total=len(df)):
@@ -193,7 +193,7 @@ class build_dataframe():
             val_array = np.load(fdir + f)
             val_dic = DIC_and_TIF().spatial_arr_to_dic(val_array)
             f_name = f.split('.')[0]
-            print(f_name)
+            # print(f_name)
             # exit()
             val_list = []
             for i, row in tqdm(df.iterrows(), total=len(df)):
@@ -219,7 +219,7 @@ class build_dataframe():
         array = np.array(array, dtype=float)
         val_dic = DIC_and_TIF().spatial_arr_to_dic(array)
         f_name = 'NDVI_MASK'
-        print(f_name)
+        # print(f_name)
         # exit()
         val_list = []
         for i, row in tqdm(df.iterrows(), total=len(df)):
@@ -243,7 +243,7 @@ class build_dataframe():
         val_dic=T.load_npy(f)
 
         f_name = f.split('.')[0]
-        print(f_name)
+        # print(f_name)
 
         val_list = []
         for i, row in tqdm(df.iterrows(), total=len(df)):
@@ -343,633 +343,6 @@ class build_dataframe():
         return df
 
 
-class Phenology():
-
-    def __init__(self):
-
-        self.datadir_all = data_root
-
-    def run(self):
-        self.hants()
-        self.hants_trendy()
-        self.check_hants()
-        self.per_pixel_annual()
-        self.annual_phenology()
-        self.compose_annual_phenology()
-        self.data_clean()
-        self.average_phenology()
-        self.pick_daily_phenology()
-        self.pick_monthly_phenology()
-        self.plot_phenology()
-
-    def hants(self):
-
-        outdir=self.datadir_all+'LAI//Hants_annually_smooth/MCD//'
-        T.mkdir(outdir)
-        fdir=self.datadir_all+'LAI\MCD_15A3H_DIC\\'
-        spatial_dic=T.load_npy_dir(fdir)
-        tif_dir=self.datadir_all+'LAI/MCD_15A3H_TIFF/'
-        date_list=[]
-        for f in os.listdir(tif_dir):
-            if f.endswith('.tif'):
-                date=f.split('.')[0]
-                # y,m,d=date.split('_')
-                y=date[0:4]
-                m=date[4:6]
-                d=date[6:8]
-                y=int(y)
-                m=int(m)
-                d=int(d)
-                date_obj=datetime.datetime(y,m,d)
-                date_list.append(date_obj)
-
-        hants365={}
-
-        for pix in tqdm(spatial_dic,desc='hants'):
-            r,c=pix
-            if r>120:
-                continue
-            vals=spatial_dic[pix]
-
-            if T.is_all_nan(vals):
-                continue
-            try:
-                # plt.plot(vals)
-                # plt.show()
-
-                results=HANTS().hants_interpolate( values_list=vals, dates_list=date_list, valid_range=[0.001,10],nan_value=0)
-            except:
-                continue
-
-            hants365[pix]=results
-        np.save(outdir+'hants365.npy',hants365)
-
-            # for year in results:
-            #     result=results[year]
-            #     plt.plot(result)
-            #     plt.title(str(year))
-            #     plt.show()
-    def hants_trendy(self):
-
-
-        fdir_all=self.datadir_all+'LAI/DIC/'
-
-        tif_dir_all = self.datadir_all + rf'\LAI\Trendy_Yang\\'
-
-
-        for fdir in os.listdir(fdir_all):
-            if not 'Trendy' in fdir:
-                continue
-
-            date_list = []
-
-            print(fdir)
-            outdir = self.datadir_all + rf'LAI/Hants_annually_smooth/{fdir}/'
-            if isdir(outdir):
-                continue
-            T.mkdir(outdir, force=True)
-
-            tif_dir=tif_dir_all+fdir+'/'
-            for f_tiff in os.listdir(tif_dir):
-                if f_tiff.endswith('.tif'):
-                    date=f_tiff.split('.')[0]
-
-                    y=int(date[:4])
-                    m=int(date[4:6])
-                    d=int(date[6:8])
-                    # format = '%Y%m%d'
-                    if y<2003:
-                        continue
-                    date_obj = datetime.datetime.strptime(date, '%Y%m%d')
-                    # date_obj = datetime.datetime.strptime(date, '%Y%m')
-                    # date_obj=datetime.datetime(y,m,d)
-                    date_list.append(date_obj)
-            # print(len(date_list))
-
-            hants365={}
-
-            spatial_dic = T.load_npy_dir(fdir_all + fdir+ '/')
-
-            for pix in tqdm(spatial_dic,desc='hants'):
-                r,c=pix
-                if r>120:
-                    continue
-                vals=spatial_dic[pix]
-
-                if T.is_all_nan(vals):
-                    continue
-                try:
-                    # plt.plot(vals)
-                    # plt.show()
-                    results=HANTS().hants_interpolate( values_list=vals, dates_list=date_list, valid_range=[0.001,10],nan_value=0)
-                except:
-                    continue
-
-                hants365[pix]=results
-            np.save(outdir+'hants365.npy',hants365)
-
-                # for year in results:
-                #     result=results[year]
-                #     plt.plot(result)
-                #     plt.title(str(year))
-                #     plt.show()
-
-    def per_pixel_annual(self):
-        fdir_all=data_root+'\LAI\Hants_annually_smooth\\'
-
-        for fdir in os.listdir(fdir_all):
-            if isdir(fdir_all+fdir):
-                continue
-
-            outdir = data_root + '\LAI\\\per_pix_annual\\' + fdir + '\\'
-            Tools().mk_dir(outdir, force=True)
-
-            for f in tqdm (os.listdir(fdir_all+fdir)):
-                if f.endswith('.npy'):
-                    hants365_dic=np.load(fdir_all+fdir+'/'+f,allow_pickle=True).item()
-
-
-            for y in range(2003, 2023):
-                outf = outdir + '{}.npy'.format(y)
-                result_dic = {}
-                for pix in hants365_dic:
-                    r,c=pix
-                    if r>120:
-                        continue
-                    result = hants365_dic[pix]
-                    # plt.plot(result)
-                    # plt.show()
-                    for year in result:
-                        if year != y:
-                            continue
-                        result_i = result[year]
-
-                        if np.isnan(np.nanmean(result_i)):
-                            continue
-                        if np.nanmean(result_i) == 0:
-                            continue
-
-                        result_dic[pix] = result_i
-
-                np.save(outf, result_dic)
-
-    def check_hants(self):
-
-        hants365=np.load(rf'D:\Greening\Data\FLUXNET_2015\screening_sites_hants\\hants365_DE-Obe.npy',allow_pickle=True).item()
-        for pix in hants365:
-            result=hants365[pix]
-            print(len(result))
-            # exit()
-
-            for year in result:
-
-                result_i=result[year]
-                print(len(result_i))
-
-                plt.plot(result_i)
-                plt.title(pix)
-                plt.show()
-        # for pix in hants365:
-        #     result=hants365[pix]
-        #
-        #     print(len(result))
-        #
-        #     plt.plot(result)
-        #     plt.title(pix)
-        #     plt.show()
-
-
-    def annual_phenology(self, threshold_i=0.2, ):
-        fdir_all = data_root+'\LAI\\\per_pix_annual\\'
-        for fdir in os.listdir(fdir_all):
-            if not fdir=='MCD':
-                continue
-
-            out_dir =data_root+rf'\LAI\phenology\\annual_phenology\\{fdir}\\'
-            T.mkdir(out_dir, force=True)
-
-            for f in T.listdir(fdir_all + fdir):
-                year = int(f.split('.')[0])
-
-                outf_i = join(out_dir, f'{year}.df')
-                hants_smooth_f = join(fdir_all, fdir, f)
-                hants_dic = T.load_npy(hants_smooth_f)
-                result_dic = {}
-                for pix in tqdm(hants_dic, desc=str(year)):
-                    r,c=pix
-                    if r>120:
-                        continue
-
-                    vals = hants_dic[pix]
-                    # plt.plot(vals)
-                    # plt.show()
-                    result = self.pick_phenology(vals, threshold_i)
-                    result_dic[pix] = result
-                df = T.dic_to_df(result_dic, 'pix')
-                T.save_df(df, outf_i)
-                T.df_to_excel(df, outf_i)
-                np.save(outf_i, result_dic)
-
-
-    def pick_phenology(self, vals, threshold_i):
-
-        peak = np.nanargmax(vals)
-        # if peak == 0 or peak == (len(vals) - 1):
-        #     return {}
-        # plt.plot(vals)
-        # plt.show()
-        # print(peak)
-        # print(np.max(vals))
-        # test=vals[peak]
-        # print(test)
-
-        if peak == 0 or peak == (len(vals) - 1):
-            return {}
-        try:
-            early_start = self.__search_left(vals, peak, threshold_i)
-            late_end = self.__search_right(vals, peak, threshold_i)
-        except:
-            early_start = 60
-            late_end = 130
-            print(vals)
-            plt.plot(vals)
-            plt.show()
-        # method 1
-        # early_end, late_start = self.__slope_early_late(vals,early_start,late_end,peak)
-        # method 2
-        early_end, late_start = self.__median_early_late(vals, early_start, late_end, peak)
-
-        early_period = early_end - early_start
-        peak_period = late_start - early_end
-        late_period = late_end - late_start
-        dormant_period = 365 - (late_end - early_start)
-
-        result = {
-            'early_length': early_period,
-            'mid_length': peak_period,
-            'late_length': late_period,
-            'dormant_length': dormant_period,
-            'early_start': early_start,
-            'early_start_mon': self.__day_to_month(early_start),
-
-            'early_end': early_end,
-            'early_end_mon': self.__day_to_month(early_end),
-
-            'peak': peak,
-            'peak_mon': self.__day_to_month(peak),
-
-            'late_start': late_start,
-            'late_start_mon': self.__day_to_month(late_start),
-
-            'late_end': late_end,
-            'late_end_mon': self.__day_to_month(late_end),
-        }
-        return result
-        pass
-
-    def __search_left(self, vals, maxind, threshold_i):
-        left_vals = vals[:maxind]
-        left_min = np.nanmin(left_vals)
-        max_v = vals[maxind]
-        threshold = (max_v - left_min) * threshold_i + left_min
-
-        ind = 999999
-        for step in range(365):
-            ind = maxind - step
-            if ind >= 365:
-                break
-            val_s = vals[ind]
-            if val_s <= threshold:
-                break
-
-        return ind
-
-    def __search_right(self, vals, maxind, threshold_i):
-        right_vals = vals[maxind:]
-        right_min = np.nanmin(right_vals)
-        max_v = vals[maxind]
-        threshold = (max_v - right_min) * threshold_i + right_min
-
-        ind = 999999
-        for step in range(365):
-            ind = maxind + step
-            if ind >= 365:
-                break
-            val_s = vals[ind]
-            if val_s <= threshold:
-                break
-
-        return ind
-
-    def __median_early_late(self, vals, sos, eos, peak):
-        # 2 使用sos-peak peak-eos中位数作为sos和eos的结束和开始
-
-        median_left = int((peak - sos) / 2.)
-        median_right = int((eos - peak) / 2)
-        max_ind = median_left + sos
-        min_ind = median_right + peak
-        return max_ind, min_ind
-
-    def __day_to_month(self, doy):
-        base = datetime.datetime(2000, 1, 1)
-        time_delta = datetime.timedelta(int(doy))
-        date = base + time_delta
-        month = date.month
-        day = date.day
-        if day > 15:
-            month = month + 1
-        if month >= 12:
-            month = 12
-        return month
-
-    def compose_annual_phenology(self, ):
-        fdir_all = data_root+rf'LAI\phenology\annual_phenology\\'
-        for fdir in os.listdir(fdir_all):
-            if not fdir.startswith('MCD'):
-                continue
-
-            outdir = data_root + f'LAI/phenology/compose_annual_phenology/{fdir}/'
-            T.mkdir(outdir, force=True)
-            outf = join(outdir, 'phenology_dataframe.df')
-
-            all_result_dic = {}
-            pix_list_all = []
-            col_list = None
-            for f in os.listdir(fdir_all + fdir):
-                f = join(fdir_all, fdir, f)
-                if not f.endswith('.df'):
-                    continue
-                df = T.load_df(f)
-                pix_list = T.get_df_unique_val_list(df, 'pix')
-                pix_list_all.append(pix_list)
-                col_list = df.columns
-            all_pix = []
-            for pix_list in pix_list_all:
-                for pix in pix_list:
-                    all_pix.append(pix)
-            pix_list = T.drop_repeat_val_from_list(all_pix)
-
-            col_list = col_list.to_list()
-            col_list.remove('pix')
-            for pix in pix_list:
-                dic_i = {}
-                for col in col_list:
-                    dic_i[col] = {}
-                all_result_dic[pix] = dic_i
-            # print(len(T.listdir(f_dir)))
-            # exit()
-            for f in tqdm(T.listdir(fdir_all + fdir)):
-                if not f.endswith('.df'):
-                    continue
-                year = int(f.split('.')[0])
-                df = T.load_df(join(fdir_all, fdir, f))
-                dic = T.df_to_dic(df, 'pix')
-                for pix in dic:
-                    for col in dic[pix]:
-                        if col == 'pix':
-                            continue
-                        all_result_dic[pix][col][year] = dic[pix][col]
-            df_all = T.dic_to_df(all_result_dic, 'pix')
-            T.save_df(df_all, outf)
-            T.df_to_excel(df_all, outf)
-            np.save(outf, all_result_dic)
-
-    def data_clean(self,):  # 盖帽法
-
-        f_dir = data_root + rf'LAI/phenology/compose_annual_phenology/MODIS//'
-        outdir = data_root + rf'LAI/phenology/compose_annual_phenology_clean/MODIS//'
-        T.mkdir(outdir, force=True)
-        outf = join(outdir, 'phenology_dataframe.df')
-        all_result_dic = {}
-        pix_list_all = []
-
-        for f in T.listdir(f_dir):
-            if not f.endswith('.df'):
-                continue
-            df = T.load_df(join(f_dir, f))
-            columns = df.columns
-            column_list = []
-            for col in columns:
-                if col == 'pix':
-                    continue
-                column_list.append(col)
-            for i, row in tqdm(df.iterrows(), total=len(df)):
-                pix = row['pix']
-                lon, lat = DIC_and_TIF().pix_to_lon_lat(pix)
-                # if lat > 70:
-                #     continue
-                # address = Tools().lonlat_to_address(lon, lat)
-                # print(address)
-                for col in column_list:
-                    dic_i = row[col]
-
-                    dic_clean = {}
-                    # print(dic_i)
-                    # values_list=dic_i.values()
-                    # values_list=list(values_list)
-                    series = pd.Series(dic_i)
-                    cap_series = self.cap(series)
-                    # print(series)
-                    # plt.plot(series)
-                    # # plt.title(address)
-                    # plt.plot(cap_series)
-                    #
-                    # plt.show()
-                    for year in dic_i:
-                        dic_clean[year] = cap_series[year]
-                    if pix not in all_result_dic:
-                        all_result_dic[pix] = {}
-
-                    all_result_dic[pix][col] = dic_clean
-            # convert to df
-            df_all = T.dic_to_df(all_result_dic, 'pix')
-            #save
-            T.save_df(df_all, outf)
-            T.df_to_excel(df_all, outf)
-
-
-
-    def cap(self, x, quantile=(0.05, 0.95)):
-
-        """盖帽法处理异常值
-        Args：
-            x：pd.Series列，连续变量
-            quantile：指定盖帽法的上下分位数范围
-        """
-
-        # 生成分位数
-        Q01, Q99 = x.quantile(quantile).values.tolist()
-
-        # 替换异常值为指定的分位数
-        if Q01 > x.min():
-            x = x.copy()
-            x.loc[x < Q01] = Q01
-
-        if Q99 < x.max():
-            x = x.copy()
-            x.loc[x > Q99] = Q99
-
-        return (x)
-
-    def average_phenology(self, ):   #将多年物候期平均
-        fdir_all = data_root + f'LAI/phenology/compose_annual_phenology/'
-        for fdir in os.listdir(fdir_all):
-            if not 'MCD' in fdir:
-                continue
-
-            outdir = data_root + f'LAI/phenology/average_phenology/{fdir}/'
-            T.mkdir(outdir, force=True)
-            outf = join(outdir, 'phenology_dataframe.df')
-
-            all_result_dic = {}
-
-            for f in T.listdir(fdir_all + fdir):
-                if not f.endswith('.df'):
-                    continue
-                df = T.load_df(join(fdir_all,fdir, f))
-                columns = df.columns
-                column_list = []
-                for col in columns:
-                    if col == 'pix':
-                        continue
-                    column_list.append(col)
-
-                pix_list = T.get_df_unique_val_list(df, 'pix')
-
-                ########################################build dic##############################################################
-                for pix in pix_list:
-                    dic_i = {}
-                    for col in column_list:
-                        dic_i[col] = {}
-                    all_result_dic[pix] = dic_i
-
-                for i, row in tqdm(df.iterrows(), total=len(df)):
-                    pix = row['pix']
-                    lon, lat = DIC_and_TIF().pix_to_lon_lat(pix)
-                    # address=Tools().lonlat_to_address(lon,lat)
-                    # print(address)
-                    for col in column_list:
-                        dic_i = row[col]
-                        # print(dic_i)
-                        values = dic_i.values()
-                        values = list(values)
-                        value_mean = np.mean(values)
-                        value_ = round(value_mean, 0)
-                        value_std = np.std(values)
-                        all_result_dic[pix][col] = value_
-
-            df_all = T.dic_to_df(all_result_dic, 'pix')
-            T.save_df(df_all, outf)
-            T.df_to_excel(df_all, outf)
-            np.save(outf, all_result_dic)
-
-    def pick_daily_phenology(self):  # 转换格式 for example: early [100,150], peak [150,200], late [200,300]
-        fdir_all = data_root + f'LAI/phenology/average_phenology/'
-        for fdir in os.listdir(fdir_all):
-            if not fdir.endswith('MCD'):
-                continue
-            outdir = data_root + f'LAI/phenology/pick_daily_phenology/{fdir}/'
-            T.mkdir(outdir, force=True)
-            outf = join(outdir, 'pick_daily_phenology.df')
-
-            phenology_df = T.load_df(
-                f'{fdir_all}/{fdir}/phenology_dataframe.df')
-
-            early_dic = {}
-            peak_dic = {}
-            late_dic = {}
-            all_result_dic = {}
-
-            for i, row in tqdm(phenology_df.iterrows(), total=len(phenology_df)):
-                pix = row['pix']
-                all_result_dic[pix] = {}
-                early_start = row['early_start']
-                early_end = row['early_end']
-                peak_start = row['early_end']
-                peak_end = row['late_start']
-                late_start = row['late_start']
-                late_end = row['late_end']
-                early_period = np.arange(int(early_start), int(early_end), 1)
-                # print(early_period)
-                peak_period = np.arange(int(early_end), int(late_start), 1)
-                # print(peak_period)
-                late_period = np.arange(int(late_start), int(late_end), 1)
-                # print(late_period)
-                all_result_dic[pix]['early'] = early_period
-                all_result_dic[pix]['peak'] = peak_period
-                all_result_dic[pix]['late'] = late_period
-                all_result_dic[pix]['early_peak'] = np.concatenate((early_period, peak_period))
-                all_result_dic[pix]['early_peak_late'] = np.concatenate((early_period, peak_period, late_period))
-                # print(all_result_dic[pix])
-
-
-            df_all = T.dic_to_df(all_result_dic, 'pix')
-            T.save_df(df_all, outf)
-            T.df_to_excel(df_all, outf)
-            np.save(outf, all_result_dic)
-
-    def pick_monthly_phenology(self):  # 转换格式 for example: early [100,150], peak [150,200], late [200,300]
-        fdir_all = data_root + f'LAI/phenology/average_phenology/'
-        for fdir in os.listdir(fdir_all):
-            if not fdir.endswith('MCD'):
-                continue
-            outdir = data_root + f'LAI/phenology/pick_monthly_phenology/{fdir}/'
-            T.mkdir(outdir, force=True)
-            outf = join(outdir, 'pick_monthly_phenology.df')
-
-            phenology_df = T.load_df(
-                f'{fdir_all}/{fdir}/phenology_dataframe.df')
-
-            early_dic = {}
-            peak_dic = {}
-            late_dic = {}
-            all_result_dic = {}
-
-            for i, row in tqdm(phenology_df.iterrows(), total=len(phenology_df)):
-                pix = row['pix']
-                all_result_dic[pix] = {}
-
-                early_start = row['early_start_mon']
-                early_end = row['early_end_mon']
-
-                late_start = row['late_start_mon']
-                late_end = row['late_end_mon']
-                early_period= np.arange(int(early_start), int(early_end))
-                early_peak_period = list(range(int(early_start), int(late_start)))
-                peak_period=list(range(int(early_end), int(late_start)))
-                late_period = list(range(int(late_start), int(late_end)+1))
-                print(early_peak_period)
-                print(peak_period)
-                print(early_period)
-                print(late_period)
-                print('-------------------')
-                # exit()
-                all_result_dic[pix]['early_peak'] = early_peak_period
-                all_result_dic[pix]['early'] = early_period
-                all_result_dic[pix]['peak'] = peak_period
-                all_result_dic[pix]['late'] = late_period
-
-                # print(all_result_dic[pix])
-
-
-            df_all = T.dic_to_df(all_result_dic, 'pix')
-            T.save_df(df_all, outf)
-            T.df_to_excel(df_all, outf)
-            np.save(outf, all_result_dic)
-
-
-
-    def plot_phenology(self):
-        # df_f=data_root+r'MODIS_LAI_MOD15A2H\phenology\annual_phenology\\2015.df'
-        df_f=data_root+r'Trendy\phenology\annual_phenology\MODIS\\2021.df'
-
-        df=T.load_df(df_f)
-        colunms='early_start'
-        spatial_dic=T.df_to_spatial_dic(df,colunms)
-        arr=DIC_and_TIF().pix_dic_to_spatial_arr(spatial_dic)
-        plt.imshow(arr,vmin=100,vmax=160,cmap='jet')
-        plt.colorbar()
-        plt.show()
 
 
 class frequency_analysis():  # Amplification and Stabilization analysis
@@ -980,9 +353,10 @@ class frequency_analysis():  # Amplification and Stabilization analysis
         self.this_class_arr = result_root + 'Data_frame\\Frequency\\MCD\\'
         self.this_class_tif = result_root + 'Data_frame\\Frequency\\MCD\\tif\\'
 
-        self.dff = self.this_class_arr + 'frequency_dataframe.df'
+        # self.dff = self.this_class_arr + 'frequency_dataframe.df'
+        self.dff = self.this_class_arr + 'frequency_dataframe2.df'
 
-        Tools().mk_dir(self.this_class_arr, force=True)
+        Tools().mkdir(self.this_class_arr, force=True)
 
 
         pass
@@ -996,18 +370,32 @@ class frequency_analysis():  # Amplification and Stabilization analysis
         ## 2. add landcover and trend, row, and some attributes such as aridity
 
         # call the function in the class of 'build_dataframe'
+        # df = T.load_df(self.dff)
+        # build_dataframe().add_row(df)
+        # build_dataframe().add_NDVI_mask(df)
+        # build_dataframe().add_GLC_landcover_data_to_df(df)
+        # build_dataframe().add_max_trend_to_df(df)
+        # P_PET_fdir = data_root + rf'\Base_data\aridity_P_PET_dic\\'
+        # P_PET_dic = build_dataframe().P_PET_ratio(P_PET_fdir)
+        #
+        # P_PET_reclass_dic = build_dataframe().P_PET_reclass_2(P_PET_dic)
+        # df = T.add_spatial_dic_to_df(df, P_PET_reclass_dic, 'HI_class')
+
+
+        # T.save_df(df, self.dff)
+        # T.df_to_excel(df, self.dff.replace('.df', ''))
 
 
         # 3. plot frequency heatmap
-
-        # df, dff = self.__load_df()
+        # df = T.load_df(self.dff)
+        #
         # df_clean = self.clean_df(df)
         # self.frenquency_heatmap(df_clean)
 
 
 
         # 4. create spatial map of frequency of stabilization and amplification
-        self.spatial_frequency()
+        # self.spatial_frequency()
 
 
         pass
@@ -1036,7 +424,8 @@ class frequency_analysis():  # Amplification and Stabilization analysis
         f_early_peak_LAI = data_root + rf'\detrended_zscore_LAI\\early_peak\\MCD.npy'
         f_late_LAI = data_root + rf'\detrended_zscore_LAI\\late\\MCD.npy'
         outdir = result_root + rf'Data_frame/Frequency//MCD///'
-        outf = outdir + f'frequency_dataframe.df'
+        # outf = outdir + f'frequency_dataframe2.df'
+        outf = self.dff
         T.mk_dir(outdir, force=1)
         dic_early_peak_LAI = dict(np.load(f_early_peak_LAI, allow_pickle=True, ).item())
         dic_late_LAI = dict(np.load(f_late_LAI, allow_pickle=True, ).item())
@@ -1198,8 +587,8 @@ class frequency_analysis():  # Amplification and Stabilization analysis
 
             plt.title(f'MCD_{region}')
 
-        plt.show()
-        plt.close()
+            plt.show()
+        # plt.close()
         #     plt.savefig(result_root + rf'Data_frame\\Frequency\\Trendy_{region}.pdf', dpi=300, )
         #     plt.close()
 
@@ -1274,22 +663,20 @@ class frequency_analysis():  # Amplification and Stabilization analysis
                 arr = DIC_and_TIF().pix_dic_to_spatial_arr(spatial_dict)
                 arr = np.array(arr)
                 ##### interpolation
-                window = 3
-                new_arr = []
-                for i in tqdm(range(len(arr))):
-                    new_arr_i = []
-                    for j in range(len(arr[0])):
-                        val = arr[i, j]
-                        if np.isnan(val):
-                            val = np.nanmean(arr[i - window:i + window + 1, j - window:j + window + 1])
-                        new_arr_i.append(val)
-                    new_arr.append(new_arr_i)
-                new_arr = np.array(new_arr)
+                # window = 3
+                # new_arr = []
+                # for i in tqdm(range(len(arr))):
+                #     new_arr_i = []
+                #     for j in range(len(arr[0])):
+                #         val = arr[i, j]
+                #         if np.isnan(val):
+                #             val = np.nanmean(arr[i - window:i + window + 1, j - window:j + window + 1])
+                #         new_arr_i.append(val)
+                #     new_arr.append(new_arr_i)
+                # new_arr = np.array(new_arr)
+                # arr_list.append(new_arr)
 
-
-                arr_list.append(new_arr)
-
-                # arr_list.append(arr)
+                arr_list.append(arr)
 
             color_matrix = []
 
@@ -1354,27 +741,30 @@ class frequency_analysis():  # Amplification and Stabilization analysis
             plt.axis('off')
             plt.axis('equal')
             legend_f = join(outdir_i,'legend.pdf')
-            plt.savefig(legend_f)
+            # plt.savefig(legend_f)
+            plt.figure()
 
             img = Image.fromarray(color_matrix.astype('uint8'), 'RGBA')
-            img.save(outf)
-            raster = gdal.Open(outf)
-            geotransform = raster.GetGeoTransform()
-            originX = DIC_and_TIF().originX
-            originY = DIC_and_TIF().originY
-            pixelWidth = DIC_and_TIF().pixelWidth
-            pixelHeight = DIC_and_TIF().pixelHeight
-
-            raster.SetGeoTransform((originX, pixelWidth, 0, originY, 0, pixelHeight))
-            outRasterSRS = osr.SpatialReference()
-
-            # outRasterSRS.ImportFromEPSG(4326)
-            # outRasterSRS.ImportFromEPSG(projection)
-            # raster.SetProjection(outRasterSRS.ExportToWkt())
-            raster.SetProjection('EPSG:4326')
-            # T.open_path_and_file(outdir_i)
-            # exit()
-        T.open_path_and_file(outdir)
+            plt.imshow(img)
+            plt.show()
+        #     img.save(outf)
+        #     raster = gdal.Open(outf)
+        #     geotransform = raster.GetGeoTransform()
+        #     originX = DIC_and_TIF().originX
+        #     originY = DIC_and_TIF().originY
+        #     pixelWidth = DIC_and_TIF().pixelWidth
+        #     pixelHeight = DIC_and_TIF().pixelHeight
+        #
+        #     raster.SetGeoTransform((originX, pixelWidth, 0, originY, 0, pixelHeight))
+        #     outRasterSRS = osr.SpatialReference()
+        #
+        #     # outRasterSRS.ImportFromEPSG(4326)
+        #     # outRasterSRS.ImportFromEPSG(projection)
+        #     # raster.SetProjection(outRasterSRS.ExportToWkt())
+        #     raster.SetProjection('EPSG:4326')
+        #     # T.open_path_and_file(outdir_i)
+        #     # exit()
+        # T.open_path_and_file(outdir)
         # exit()
 
     def get_raster_projections(self, rasterfn):
@@ -1393,7 +783,7 @@ class frequency_analysis():  # Amplification and Stabilization analysis
 class SEM:
     def __init__(self):
         # This class is used to calculate the structural equation model
-        self.this_class_arr = result_root + '\Data_frame\detrend_zscore\\'
+        self.this_class_arr = data_root + r'\detrend_zscore\\'
         self.dff = self.this_class_arr + 'detrend_zscore.df'
         self.outdir = result_root + 'SEM//'
         T.mkdir(self.outdir, force=True)
@@ -1412,8 +802,6 @@ class SEM:
         ##water-limited and energy-limited, seperately based on the selected region]
         self.SEM_model(df_clean, des)
 
-
-
         pass
 
     def __load_df(self):
@@ -1429,7 +817,6 @@ class SEM:
         df = df[df['HI_class'] == 'Dryland']
         df = df[df['max_trend'] < 10]
         df = df[df['early_peak_MCD'] > 0]
-
 
         df = df[df['landcover_GLC'] != 'Crop']
 
@@ -1479,32 +866,29 @@ class SEM:
         T.save_df(result, outf + '.df')
         T.df_to_excel(result, outf + '.xlsx')
 
-        outf = self.outdir + 'water_limited_MCD'
-        semopy.report(mod, outf)
+        # outf = self.outdir + 'water_limited_MCD'
+        # semopy.report(mod, outf)
+
 
 class SEM_anaysis():  #### SEM result comparision between observation and model
     def __init__(self):
         self.this_class_arr = result_root + 'SEM_anaysis\\'
         T.mk_dir(self.this_class_arr, force=1)
-
-
-
         pass
     def run(self):
-        self.SEM_process_comparision()
-        # self.model_performance()
-
+        region_water_limited = 'water_limited'
+        region_energy_limited = 'energy_limited'
+        self.SEM_process_comparision(region_water_limited)
+        self.SEM_process_comparision(region_energy_limited)
         pass
 
-
-    def SEM_process_comparision(self):
+    def SEM_process_comparision(self,region):
         marker_list = ['o', 's', 'D', 'v', 'p', 'P', '^', 'X', 'd']
         # color_list=['g','b','y','c','m','k','orange','purple','brown']
         color_list = T.gen_colors(9)
 
         fdir = join(self.this_class_arr, 'df_model')
         # region = 'water_limited'
-        region = 'water_limited'
         val_list = []
         result_dict = {}
 
@@ -1641,51 +1025,6 @@ class SEM_anaysis():  #### SEM result comparision between observation and model
         ]
         return path_list
 
-    def model_performance(self):
-        fig = plt.figure(figsize=(10, 5))
-        xlsx = result_root + 'SEM3\model_performance_energy_limited.xlsx'
-        df = pd.read_excel(xlsx)
-        T.print_head_n(df)
-        attriute_list = ['RMSE', 'GFI', 'AGFI', ]
-        ### read columns model name and RMSEA
-        flag=1
-        for attribute in attriute_list:
-            ax = fig.add_subplot(1, 3, flag)
-
-            model_list = df['Model_name']
-            RMSEA_list = df[attribute]
-            ## reverse the RMSEA and model name
-            RMSEA_list = RMSEA_list[::-1]
-            model_list = model_list[::-1]
-            RMSEA_list = RMSEA_list.to_list()
-            model_list = model_list.to_list()
-            print(model_list)
-            print(RMSEA_list)
-
-            ## add a line to show the threshold of MODIS
-            ## get MODIS RMSEA
-            modis_RMSEA = df[df['Model_name'] == 'MODIS'][attribute].values[0]
-            print(modis_RMSEA)
-            ## plot all attribute
-
-            ax.bar(range(len(model_list)), RMSEA_list, color='b', label=attribute)
-            ax.axhline(y=modis_RMSEA, color='r', linestyle='--', label='MODIS')
-            ax.set_xticks(range(len(model_list)))
-            ax.set_xticklabels(model_list, rotation=45)
-            ax.set_ylabel(attribute)
-            ax.set_xlabel('Model')
-            ax.legend()
-
-            flag=flag+1
-        plt.tight_layout()
-        plt.show()
-
-
-
-
-
-
-        pass
 
 
 
@@ -1715,9 +1054,6 @@ class Stabilization_amplification_longterm_trends:
 
 
 
-        ## 5
-        # self.plot_feedback_vs_trend()
-
         pass
 
 
@@ -1741,10 +1077,10 @@ class Stabilization_amplification_longterm_trends:
 
                 df_pick = df[df['HI_class'] == region]
 
-                for variable in product_list:
+                for variable in tqdm(product_list,desc=f'{region}_{period}'):
                     column_name = f'{period}_{variable}'
 
-                    print(column_name)
+                    # print(column_name)
 
                     mean_value_yearly, up_list, bottom_list, fit_value_yearly, k_value, p_value = self.plot_calculation(
                         df_pick, column_name)
@@ -1772,23 +1108,23 @@ class Stabilization_amplification_longterm_trends:
         confidence_value = {}
         std_val = {}
         # year_list = df['year'].to_list()
-        # year_list = set(year_list)  # 取唯一
+        # year_list = set(year_list)  #
         # year_list = list(year_list)
         # year_list.sort()
 
         year_list = []
         for i in range(2003, 2022):
             year_list.append(i)
-        print(year_list)
+        # print(year_list)
 
-        for year in tqdm(year_list):  # 构造字典的键值，并且字典的键：值初始化
+        for year in year_list:  #
             dic[year] = []
             mean_val[year] = []
             confidence_value[year] = []
 
         for year in year_list:
             df_pick = df[df['year'] == year]
-            for i, row in tqdm(df_pick.iterrows(), total=len(df_pick)):
+            for i, row in df_pick.iterrows():
                 pix = row.pix
                 val = row[column_name]
                 dic[year].append(val)
@@ -1805,17 +1141,17 @@ class Stabilization_amplification_longterm_trends:
             std_val[year] = std_val_i
 
         # a, b, r = KDE_plot().linefit(xaxis, val)
-        mean_val_list = []  # mean_val_list=下面的mean_value_yearly
+        mean_val_list = []
 
         for year in year_list:
             mean_val_list.append(mean_val[year])
         xaxis = range(len(mean_val_list))
         xaxis = list(xaxis)
-        print(len(mean_val_list))
+        # print(len(mean_val_list))
         # r, p_value = stats.pearsonr(xaxis, mean_val_list)
         # k_value, b_value = np.polyfit(xaxis, mean_val_list, 1)
         k_value, b_value, r, p_value = T.nan_line_fit(xaxis, mean_val_list)
-        print(k_value)
+        # print(k_value)
 
         mean_value_yearly = []
         up_list = []
@@ -1836,7 +1172,7 @@ class Stabilization_amplification_longterm_trends:
 
         return mean_value_yearly, up_list, bottom_list, fit_value_yearly, k_value, p_value
         # exit()
-    def calculate_average(self):## 实现计算中位数 of individual product
+    def calculate_average(self):
         import pprint
         df= T.load_df(result_root + rf'\\Data_frame\zscore\\zscore.df')
         f_individual = result_root + rf'\zscore_result_statistical_annual\\zscore_result_statistical_annual.npy'
@@ -1857,7 +1193,7 @@ class Stabilization_amplification_longterm_trends:
         for region in region_list:
             for period in period_name:
                 whole_list = []
-                for product in product_list:
+                for product in tqdm(product_list,desc=f'{region}_{period}'):
                     column_name = f'{period}_{product}'
                     df_pick = df[df['HI_class'] == region]
 
@@ -1890,7 +1226,7 @@ class Stabilization_amplification_longterm_trends:
         T.mk_dir(outdir, force=1)
         outf = outdir + 'zscore_result_statistical_annual_average.npy'
         T.save_npy(dic_individual, outf)
-        pprint.pprint(dic_individual)
+        # pprint.pprint(dic_individual)
 
 
 
@@ -1958,7 +1294,7 @@ class Stabilization_amplification_longterm_trends:
                 # major_yticks = np.arange(-10, 15, 5)
                 major_yticks = np.arange(-0.8, 0.9, 0.4)
                 plt.ylim(-0.8, 0.8)
-                # major_ticks = np.arange(0, 40, 5)  ### 根据数据长度修改这里
+                # major_ticks = np.arange(0, 40, 5)  ###
                 ax.set_xticks(major_xticks)
                 ax.set_yticks(major_yticks)
                 plt.grid(which='major', alpha=0.5)
@@ -2000,7 +1336,7 @@ class Stabilization_amplification_longterm_trends:
                 start_year = 2003
                 end_year = 2003 + len(vals) - 1
                 year_list = list(range(start_year, end_year + 1))
-                print(len(year_list))
+                # print(len(year_list))
                 break
             # exit()
             all_dict = {
@@ -2201,8 +1537,8 @@ class Stabilization_amplification_longterm_trends:
                     p_value_list_trend.append(p_value_trend)
 
                     label_list.append(f'{region}-{variable}-{period}')
-                centimeter = 2.54
-                plt.figure(figsize=(9/centimeter, 7/centimeter))
+
+                # plt.figure(figsize=(9/centimeter, 7/centimeter))
 
                 for i in range(len(x_list)):
                     x=x_list[i]
@@ -2226,225 +1562,6 @@ class Stabilization_amplification_longterm_trends:
                 # outf=join(outdir,f'{region}_{period}.pdf')
                 # plt.savefig(outf)
                 # plt.close()
-
-
-
-class Tools:
-    def load_df(self, f):
-        df = pd.read_pickle(f)
-        df = pd.DataFrame(df)
-        return df
-        pass
-
-    def save_df(self, df, outf):
-        df.to_pickle(outf)
-
-    def df_to_excel(self, df, dff, n=1000, random=False):
-        if n == None:
-            df.to_excel('{}.xlsx'.format(dff))
-        else:
-            if random:
-                df = df.sample(n=n, random_state=1)
-                df.to_excel('{}.xlsx'.format(dff))
-            else:
-                df = df.head(n)
-                df.to_excel('{}.xlsx'.format(dff))
-
-class ToRaster:
-    def __init__(self):
-
-        pass
-
-    def raster2array(self, rasterfn):
-        '''
-        create array from raster
-        Agrs:
-            rasterfn: tiff file path
-        Returns:
-            array: tiff data, an 2D array
-        '''
-        raster = gdal.Open(rasterfn)
-        geotransform = raster.GetGeoTransform()
-        originX = geotransform[0]
-        originY = geotransform[3]
-        pixelWidth = geotransform[1]
-        pixelHeight = geotransform[5]
-        band = raster.GetRasterBand(1)
-        array = band.ReadAsArray()
-        array = np.asarray(array)
-        del raster
-        return array, originX, originY, pixelWidth, pixelHeight
-
-    def get_ndv(self, rasterfn):
-        raster = gdal.Open(rasterfn)
-        NDV = raster.GetRasterBand(1).GetNoDataValue()
-        del raster
-        return NDV
-
-    def array2raster_GDT_Byte(self, newRasterfn, longitude_start, latitude_start, pixelWidth, pixelHeight, array):
-        cols = array.shape[1]
-        rows = array.shape[0]
-        originX = longitude_start
-        originY = latitude_start
-        # open geotiff
-        driver = gdal.GetDriverByName('GTiff')
-        if os.path.exists(newRasterfn):
-            os.remove(newRasterfn)
-        outRaster = driver.Create(newRasterfn, cols, rows, 1, gdal.GDT_Byte)
-        # Add Color Table
-        # outRaster.GetRasterBand(1).SetRasterColorTable(ct)
-        outRaster.SetGeoTransform((originX, pixelWidth, 0, originY, 0, pixelHeight))
-        # Write Date to geotiff
-        outband = outRaster.GetRasterBand(1)
-        ndv = 255
-        outband.SetNoDataValue(ndv)
-        outband.WriteArray(array)
-        outRasterSRS = osr.SpatialReference()
-        outRasterSRS.ImportFromEPSG(4326)
-        outRaster.SetProjection(outRasterSRS.ExportToWkt())
-        # Close Geotiff
-        outband.FlushCache()
-        del outRaster
-
-    def array2raster(self, newRasterfn, longitude_start, latitude_start, pixelWidth, pixelHeight, array, ndv=-999999):
-        cols = array.shape[1]
-        rows = array.shape[0]
-        originX = longitude_start
-        originY = latitude_start
-        # open geotiff
-        driver = gdal.GetDriverByName('GTiff')
-        if os.path.exists(newRasterfn):
-            os.remove(newRasterfn)
-        outRaster = driver.Create(newRasterfn, cols, rows, 1, gdal.GDT_Float32)
-        # outRaster = driver.Create(newRasterfn, cols, rows, 1, gdal.GDT_UInt16)
-        # ndv = 255
-        # Add Color Table
-        # outRaster.GetRasterBand(1).SetRasterColorTable(ct)
-        outRaster.SetGeoTransform((originX, pixelWidth, 0, originY, 0, pixelHeight))
-        # Write Date to geotiff
-        outband = outRaster.GetRasterBand(1)
-
-        outband.SetNoDataValue(ndv)
-        outband.WriteArray(array)
-        outRasterSRS = osr.SpatialReference()
-        outRasterSRS.ImportFromEPSG(4326)
-        outRaster.SetProjection(outRasterSRS.ExportToWkt())
-        # Close Geotiff
-        outband.FlushCache()
-        del outRaster
-
-    def array2raster_polar(self, newRasterfn, longitude_start, latitude_start, pixelWidth, pixelHeight, array,
-                           ndv=-999999):
-        cols = array.shape[1]
-        rows = array.shape[0]
-        originX = longitude_start
-        originY = latitude_start
-        # open geotiff
-        driver = gdal.GetDriverByName('GTiff')
-        if os.path.exists(newRasterfn):
-            os.remove(newRasterfn)
-        outRaster = driver.Create(newRasterfn, cols, rows, 1, gdal.GDT_Float32)
-        # Add Color Table
-        # outRaster.GetRasterBand(1).SetRasterColorTable(ct)
-        outRaster.SetGeoTransform((originX, pixelWidth, 0, originY, 0, pixelHeight))
-        # Write Date to geotiff
-        outband = outRaster.GetRasterBand(1)
-
-        outband.SetNoDataValue(ndv)
-        outband.WriteArray(array)
-        # outRasterSRS.ImportFromEPSG(4326)
-        # outRaster.SetProjection(outRasterSRS.ExportToWkt())
-        # ref = osr.SpatialReference()
-        # outRasterSRS = osr.SpatialReference()
-        # ref_chr = r"PROJCS[\"NSIDC EASE-Grid North\",GEOGCS[\"Unspecified datum based upon the International 1924 Authalic Sphere\",DATUM[\"Not_specified_based_on_International_1924_Authalic_Sphere\",SPHEROID[\"International 1924 Authalic Sphere\",6371228,0,AUTHORITY[\"EPSG\",\"7057\"]],TOWGS84[-9036842.762,25067.525,0,9036842.763000002,0,-25067.525],AUTHORITY[\"EPSG\",\"6053\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4053\"]],PROJECTION[\"Lambert_Azimuthal_Equal_Area\"],PARAMETER[\"latitude_of_center\",90],PARAMETER[\"longitude_of_center\",0],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"X\",EAST],AXIS[\"Y\",NORTH],AUTHORITY[\"EPSG\",\"3408\"]]"
-        # ref_chr = r'PROJCS["Grenada 1953 / British West Indies Grid",GEOGCS["Grenada 1953",DATUM["Grenada_1953",SPHEROID["Clarke 1880 (RGS)",6378249.145,293.465,AUTHORITY["EPSG","7012"]],TOWGS84[72,213.7,93,0,0,0,0],AUTHORITY["EPSG","6603"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.01745329251994328,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4603"]],UNIT["metre",1,AUTHORITY["EPSG","9001"]],PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",0],PARAMETER["central_meridian",-62],PARAMETER["scale_factor",0.9995],PARAMETER["false_easting",400000],PARAMETER["false_northing",0],AUTHORITY["EPSG","2003"],AXIS["Easting",EAST],AXIS["Northing",NORTH]]'
-        # ref_chr = r'PROJCS["North_Pole_Lambert_Azimuthal_Equal_Area",GEOGCS["GCS_WGS_1984",DATUM["WGS_1984",SPHEROID["WGS_1984",6378137,298.257223563]],PRIMEM["Greenwich",0],UNIT["Degree",0.017453292519943295]],PROJECTION["Lambert_Azimuthal_Equal_Area"],PARAMETER["False_Easting",0],PARAMETER["False_Northing",0],PARAMETER["Central_Meridian",0],PARAMETER["Latitude_Of_Origin",90],UNIT["Meter",1],AUTHORITY["EPSG","9122"]]'
-        # ref_chr = "PROJCS['North_Pole_Lambert_Azimuthal_Equal_Area',GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Lambert_Azimuthal_Equal_Area'],PARAMETER['False_Easting',0.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',0.0],PARAMETER['Latitude_Of_Origin',90.0],UNIT['Meter',1.0]]"
-        # ref_chr = ref_chr.replace('\\','')
-        # print ref_chr
-        # "PROJCS['North_Pole_Lambert_Azimuthal_Equal_Area',GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Lambert_Azimuthal_Equal_Area'],PARAMETER['False_Easting',0.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',0.0],PARAMETER['Latitude_Of_Origin',90.0],UNIT['Meter',1.0]]"
-        # outRasterSRS.ImportFromWkt(ref_chr)
-        # print outRasterSRS
-        # outRaster.SetProjection(outRasterSRS.ExportToWkt())
-        # outRaster.SetProjection(ref_chr)
-        outband.FlushCache()
-        del outRaster
-
-    def shp_to_raster(self, in_shp, output_raster, pixel_size, in_raster_template=None, ndv=-999999):
-        input_shp = ogr.Open(in_shp)
-        shp_layer = input_shp.GetLayer()
-        if in_raster_template:
-            raster = gdal.Open(in_raster_template)
-            ulx, xres, xskew, uly, yskew, yres = raster.GetGeoTransform()
-            lrx = ulx + (raster.RasterXSize * xres)
-            lry = uly + (raster.RasterYSize * yres)
-            xmin, xmax, ymin, ymax = ulx, lrx, lry, uly
-        else:
-            xmin, xmax, ymin, ymax = shp_layer.GetExtent()
-        ds = gdal.Rasterize(output_raster, in_shp, xRes=pixel_size, yRes=pixel_size,
-                            burnValues=1, noData=ndv, outputBounds=[xmin, ymin, xmax, ymax],
-                            outputType=gdal.GDT_Byte)
-        ds = None
-        return output_raster
-
-    def clip_array(self, in_raster, out_raster, in_shp):
-        ds = gdal.Open(in_raster)
-        ds_clip = gdal.Warp(out_raster, ds, cutlineDSName=in_shp, cropToCutline=True, dstNodata=np.nan)
-        ds_clip = None
-
-    # def clip_array(self, in_raster, out_raster, in_shp):
-    #     in_array, originX, originY, pixelWidth, pixelHeight = self.raster2array(in_raster)
-    #     input_shp = ogr.Open(in_shp)
-    #     shp_layer = input_shp.GetLayer()
-    #     xmin, xmax, ymin, ymax = shp_layer.GetExtent()
-    #     in_shp_encode = in_shp.encode('utf-8')
-    #     originX_str = str(originX)
-    #     originY_str = str(originY)
-    #     pixelWidth_str = str(pixelWidth)
-    #     pixelHeight_str = str(pixelHeight)
-    #     originX_str = originX_str.encode('utf-8')
-    #     originY_str = originY_str.encode('utf-8')
-    #     pixelWidth_str = pixelWidth_str.encode('utf-8')
-    #     pixelHeight_str = pixelHeight_str.encode('utf-8')
-    #     m1 = hashlib.md5(originX_str + originY_str + pixelWidth_str + pixelHeight_str + in_shp_encode)
-    #     md5filename = m1.hexdigest() + '.tif'
-    #     temp_dir = 'temporary_directory/'
-    #     Tools().mkdir(temp_dir)
-    #     temp_out_raster = temp_dir + md5filename
-    #     if not os.path.isfile(temp_out_raster):
-    #         self.shp_to_raster(in_shp, temp_out_raster, pixelWidth, in_raster_template=in_raster, )
-    #     rastered_mask_array = self.raster2array(temp_out_raster)[0]
-    #     in_mask_arr = np.array(rastered_mask_array)
-    #     in_mask_arr[in_mask_arr < -9999] = False
-    #     in_mask_arr = np.array(in_mask_arr, dtype=bool)
-    #     in_array[~in_mask_arr] = np.nan
-    #     lon_list = [xmin, xmax]
-    #     lat_list = [ymin, ymax]
-    #     pix_list = DIC_and_TIF(tif_template=in_raster).lon_lat_to_pix(lon_list, lat_list, isInt=False)
-    #     pix1, pix2 = pix_list
-    #     in_array = in_array[pix2[0]:pix1[0]]
-    #     in_array = in_array.T
-    #     in_array = in_array[pix1[1]:pix2[1]]
-    #     in_array = in_array.T
-    #     longitude_start, latitude_start = xmin, ymax
-    #     self.array2raster(out_raster, longitude_start, latitude_start, pixelWidth, pixelHeight, in_array)
-
-    def mask_array(self, in_raster, out_raster, in_mask_raster):
-        in_arr, originX, originY, pixelWidth, pixelHeight = self.raster2array(in_raster)
-        in_mask_arr, originX, originY, pixelWidth, pixelHeight = self.raster2array(in_mask_raster)
-        in_arr = np.array(in_arr, dtype=float)
-        in_mask_arr = np.array(in_mask_arr)
-        in_mask_arr[in_mask_arr < -9999] = False
-        in_mask_arr = np.array(in_mask_arr, dtype=bool)
-        in_arr[~in_mask_arr] = np.nan
-        longitude_start, latitude_start, pixelWidth, pixelHeight = originX, originY, pixelWidth, pixelHeight
-        self.array2raster(out_raster, longitude_start, latitude_start, pixelWidth, pixelHeight, in_arr)
-
-    def resample_reproj(self, in_tif, out_tif, res, srcSRS='EPSG:4326', dstSRS='EPSG:4326'):
-        dataset = gdal.Open(in_tif)
-        gdal.Warp(out_tif, dataset, xRes=res, yRes=res, srcSRS=srcSRS, dstSRS=dstSRS)
-
-
 
 class Dataframe_per_value_transform:
 
@@ -2511,12 +1628,9 @@ def main():
     # SEM_anaysis().run()
 
     ## 4. create spatial map of frequency of stabilization and amplification [figure4]
-    Stabilization_amplification_longterm_trends().run()
+    # Stabilization_amplification_longterm_trends().run()
 
-
-
-
-
+    pass
 
 if __name__ == '__main__':
     main()
