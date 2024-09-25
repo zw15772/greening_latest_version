@@ -502,8 +502,8 @@ class TIFtoDIC():
         pass
     def run(self):
         # self.trendy_ensemble_calculation()
-        # self.tif2dict()
-        self.tif2dict_trendy()
+        self.tif2dict()
+        # self.tif2dict_trendy()
     def trendy_ensemble_calculation(self):
         fdir_all = data_root + rf'Trendy_SM\Trendy_SM_unify\\'
         outdir = data_root +'LAI\Trendy_unify\Trendy_enemble2\\'
@@ -580,18 +580,18 @@ class TIFtoDIC():
 
 
     def tif2dict(self):
-        fdir=data_root + rf'Climate\resample_monthly\\Temp\\'
+        fdir=data_root + rf'\resample_monthly\\Temp\\'
         outdir=data_root+'Climate\DIC\\Temp\\'
 
 
-        NDVI_mask_f='C:/Users/pcadmin/Desktop/Data/Base_data/NDVI_mask.tif'
+        NDVI_mask_f='D:\Greening\Data\Base_data/NDVI_mask.tif'
         array_mask, originX, originY, pixelWidth, pixelHeight = to_raster.raster2array(NDVI_mask_f)
         array_mask[array_mask<0]=np.nan
 
         T.mk_dir(outdir,force=True)
         flist=os.listdir(fdir)
         all_array=[]
-        year_list=list(range(2003,2023))  # 作为筛选条件
+        year_list=list(range(2003,2022))  # 作为筛选条件
         for f in tqdm(sorted(flist),desc='loading...'):
             if f.startswith('.'):
                 continue
@@ -615,7 +615,7 @@ class TIFtoDIC():
             #     continue
 
             array, originX, originY, pixelWidth, pixelHeight = to_raster.raster2array(fdir + f)
-            array = np.array(array, dtype=np.float)
+            array = np.array(array)
             array=array[:360]  # PAR是361*720
 
             array[array<-999]=np.nan
@@ -623,7 +623,7 @@ class TIFtoDIC():
             # array[array < 0] = np.nan # 当变量是LAI 的时候，<0!!
             # plt.imshow(array)
             # plt.show()
-            array_mask=np.array(array_mask,dtype=np.float)
+            array_mask=np.array(array_mask)
             # plt.imshow(array_mask)
             # plt.show()
             array=array * array_mask
@@ -1784,8 +1784,9 @@ class statistic_analysis():
         pass
     def run(self):
         # self.trend_analysis()
-        self.detrend_zscore()
-        # self.detrend_zscore_monthly()
+        # self.detrend_zscore()
+        # self.detrend_zscore_seasonality()
+        self.detrend_zscore_monthly()
         # self.zscore()
 
 
@@ -1937,6 +1938,77 @@ class statistic_analysis():
                 np.save(outf, detrend_zscore_dic)
 
     def detrend_zscore_monthly(self): #
+        ## here we use monthly data to detrend the zscore of climate
+
+        dic_mask_lc_file = data_root+'Base_data/LC_reclass2.npy'
+        dic_mask_lc = T.load_npy(dic_mask_lc_file)
+
+        tiff_mask_landcover_change = data_root+'/Base_data/lc_trend/max_trend.tif'
+
+        array_mask_landcover_change, originX, originY, pixelWidth, pixelHeight = to_raster.raster2array(
+            tiff_mask_landcover_change)
+        array_mask_landcover_change[array_mask_landcover_change * 20 > 10] = np.nan
+        array_mask_landcover_change = DIC_and_TIF().spatial_arr_to_dic(array_mask_landcover_change)
+
+
+        product_list = ['Precipitation','Temp','SMroot','SMsurf','Et']
+
+        for product in product_list:
+            outdir = result_root + rf'detrend_zscore\\climate_monthly\annual\\'
+            outf=outdir+product+'.npy'
+            fdir= data_root + rf'\Climate\DIC\\{product}\\'
+
+            Tools().mk_dir(outdir,force=True)
+
+            dic = T.load_npy_dir(fdir)
+
+            detrend_zscore_dic={}
+
+            for pix in tqdm(dic):
+
+                val_lc_change = array_mask_landcover_change[pix]
+                if val_lc_change < -9999:
+                    continue
+                if pix not in dic_mask_lc:
+                    continue
+                if dic_mask_lc[pix] == 'Crop':
+                    continue
+                if array_mask_landcover_change[pix] == np.nan:
+                    continue
+                print(len(dic[pix]))
+                time_series_reshape = dic[pix].reshape(-1, 12)
+
+                ## detrend the zscore
+                detrend_time_series_list = []
+                time_series_T=time_series_reshape.T
+
+                for time_series in time_series_T:
+
+                    time_series_mean = np.nanmean(time_series)
+                    time_series_std = np.nanstd(time_series)
+                    # plt.plot(time_series)
+
+                    time_series_zscore = (time_series - time_series_mean) / time_series_std
+                    # plt.plot(time_series_zscore,c='b')
+                    if np.isnan(np.nanmean(time_series_zscore)):
+                        continue
+                    detrend_time_series = signal.detrend(time_series_zscore)
+
+                    # plt.plot(detrend_time_series,c='r')
+                    # plt.show()
+                    detrend_time_series_list.append(detrend_time_series)
+                detrend_time_series_list = np.array(detrend_time_series_list).T
+                detrend_time_series_list = detrend_time_series_list.flatten()
+                # plt.plot(detrend_time_series_list)
+                # plt.show()
+
+
+                detrend_zscore_dic[pix] = detrend_time_series_list
+
+
+            np.save(outf, detrend_zscore_dic)
+
+    def detrend_zscore_seasonality(self): #
 
         dic_mask_lc_file = data_root+'Base_data/LC_reclass2.npy'
         dic_mask_lc = T.load_npy(dic_mask_lc_file)
@@ -1952,7 +2024,7 @@ class statistic_analysis():
         product_list = ['precip','Temp','SMroot','SMsurf','Et']
 
 
-        for period in ['early', 'peak', 'late', 'early_peak']:
+        for period in ['early', 'peak', 'late', 'early_peak',]:
 
             for product in product_list:
                 outdir = result_root + rf'detrend_zscore\\climate_monthly\{period}\\'
@@ -4639,6 +4711,123 @@ class SEM_wen:
         outf = self.outdir + 'water_limited_MCD'
         semopy.report(mod, outf)
 
+
+class SEM_wen_ET:
+    def __init__(self):
+        # This class is used to calculate the structural equation model
+        self.this_class_arr = result_root + '\Data_frame\detrend_zscore_new\\'
+        self.dff = self.this_class_arr + 'detrend_zscore_new.df'
+        self.outdir = result_root + 'SEM_ET//'
+        T.mkdir(self.outdir, force=True)
+
+        pass
+
+    def run(self):
+        df, dff = self.__load_df()
+        des = self.model_description_not_detrend()
+
+        df_clean = self.clean_df(df)
+        self.SEM_model(df_clean, des)
+        pass
+
+    def __load_df(self):
+        dff = self.dff
+        df = T.load_df(dff)
+
+        return df, dff
+        # return df_early,dff
+
+    def clean_df(self, df):
+        df = df[df['row'] < 120]
+        # df = df[df['HI_class'] == 'Humid']
+        df = df[df['HI_class'] == 'Dryland']
+        df = df[df['max_trend'] < 10]
+        df = df[df['early_peak_MCD'] > 0]
+        ## late <early
+        # df=df[df['late_MCD']>df['early_peak_MCD']] ###
+        # df=df[df['late_MCD']<0]
+        # df = df[df['detrend_late_MODIS_LAI_zscore'] > 0]
+
+        df = df[df['landcover_GLC'] != 'Crop']
+
+        return df
+
+    def model_description_not_detrend(self):
+        desc_water_limited_SMroot = '''
+                            # regressions
+
+                            early_peak_MCD~early_Temp+early_precip
+                            peak_Et~  early_peak_MCD
+
+                            peak_SMroot~  early_peak_MCD+peak_precip+peak_Et
+
+                            late_MCD ~ peak_SMroot + late_Temp
+                            late_MCD~peak_precip
+
+
+                            # residual correlations
+                             early_peak_MCD~~early_peak_MCD
+                                peak_SMroot~~peak_SMroot
+                                late_MCD~~late_MCD
+                                peak_Et~~peak_Et
+
+                                early_peak_MCD~~early_Temp
+                                early_peak_MCD~~early_precip
+                                peak_Et~~early_peak_MCD
+                                peak_SMroot~~early_peak_MCD
+                                peak_SMroot~~peak_precip
+                                peak_SMroot~~peak_Et
+                                
+                                
+                                late_MCD~~peak_SMroot
+                                late_MCD~~late_Temp
+                                late_MCD~~peak_precip
+
+                            '''
+
+        desc_energy_limited_SMroot = '''
+                                    # regressions
+
+                                    early_peak_MCD~early_Temp+early_precip
+
+                                    peak_SMroot~  early_peak_MCD+peak_precip
+
+                                    late_MCD ~ peak_SMroot + late_Temp
+                                    late_MCD~peak_precip
+
+
+                                    # residual correlations
+                                     early_peak_MCD~~early_peak_MCD
+                                        peak_SMroot~~peak_SMroot
+                                        late_MCD~~late_MCD
+
+                                        early_peak_MCD~~early_Temp
+                                        early_peak_MCD~~early_precip
+                                        peak_SMroot~~early_peak_MCD
+                                        peak_SMroot~~peak_precip
+                                        late_MCD~~peak_SMroot
+                                        late_MCD~~late_Temp
+                                        late_MCD~~peak_precip
+
+                                    '''
+
+        return desc_water_limited_SMroot
+
+
+    def SEM_model(self, df, desc):
+        mod = semopy.Model(desc)
+        res = mod.fit(df)
+
+        result = mod.inspect()
+        T.print_head_n(result)
+        outf = self.outdir + f'water_limited_MCD'
+        T.save_df(result, outf + '.df')
+        T.df_to_excel(result, outf + '.xlsx')
+
+        outf = self.outdir + 'water_limited_MCD'
+        semopy.report(mod, outf)
+
+
 class SEM_wen_for_individual_model:
     def __init__(self):
 
@@ -6112,8 +6301,9 @@ def main():
     # trends_seasonal_feedback().run()
     # long_term_seasonal_feedbacks_window_anaysis().run()
     # build_dataframe().run()
-    long_term_trends().run()
+    # long_term_trends().run()
     # SEM_wen().run()
+    SEM_wen_ET().run()
     # SEM_wen_for_individual_model().run()
     # SEM_anaysis().run()
 

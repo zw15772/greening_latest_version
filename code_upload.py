@@ -124,50 +124,6 @@ class build_dataframe():
 
         return df
 
-    def add_detrend_zscore_to_df(self,df):
-        period_list = ['early', 'peak', 'late','early_peak']
-        for period in period_list:
-
-
-            fdir=result_root + rf'detrend_zscore\Trendy_SM\{period}\\'
-
-            for f in os.listdir(fdir):
-
-
-                if not f.endswith('npy'):
-                    continue
-
-                NDVI_dic = T.load_npy(fdir+f)
-
-                f_name = fdir.split('\\')[-3]+'_'+f.split('\\')[-1].split('.')[0]
-                # print(f_name)
-
-                NDVI_list = []
-                for i, row in tqdm(df.iterrows(), total=len(df)):
-                    year = row['year']
-                    # pix = row.pix
-                    pix = row['pix']
-                    if not pix in NDVI_dic:
-                        NDVI_list.append(np.nan)
-                        continue
-
-                    vals = NDVI_dic[pix]
-                    # print(len(vals))
-                    ## nanmean
-                    vals = np.array(vals)
-                    vals[vals < -999] = np.nan
-                    if np.isnan(np.nanmean(vals)):
-                        NDVI_list.append(np.nan)
-                        continue
-                    try:
-                        v1 = vals[year - 2003]
-                        NDVI_list.append(v1)
-                    except:
-                        NDVI_list.append(np.nan)
-
-                df[f_name] = NDVI_list
-        return df
-
     def add_row(self,df):
         r_list=[]
         for i, row in tqdm(df.iterrows(), total=len(df)):
@@ -1559,7 +1515,29 @@ class Stabilization_amplification_longterm_trends:
                 # outf=join(outdir,f'{region}_{period}.pdf')
                 # plt.savefig(outf)
                 # plt.close()
+class trajectory_plot:
 
+    def __init__(self):
+        pass
+    def plot_trajectory(self):
+        ## 1 pick early-and peak season LAI >0 and late season LAI <0 and then extract all climate variables
+        ## 2 plot
+        f_LAI_early_peak = rf'D:\Greening\Result\detrend_zscore\LAI\\early_peak\\MCD.npy'
+        f_LAI_late = rf'D:\Greening\Result\detrend_zscore\LAI\\late\\MCD.npy'
+        climate_var_fdir = rf'D:\Greening\Result\detrend_zscore\climate_monthly\early'
+
+        dic_early_peak_LAI = T.load_npy(f_LAI_early_peak)
+        dic_late_LAI = T.load_npy(f_LAI_late)
+
+        for pix in dic_early_peak_LAI:
+            early_val=dic_early_peak_LAI[pix]
+            late_val=dic_late_LAI[pix]
+
+
+
+        ## plot trajectory
+
+        pass
 class Dataframe_per_value_transform:
 
     def __init__(self, df, variable_list, start_year, end_year):
