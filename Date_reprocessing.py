@@ -1783,10 +1783,10 @@ class statistic_analysis():
     def __init__(self):
         pass
     def run(self):
-        # self.trend_analysis()
+        self.trend_analysis()
         # self.detrend_zscore()
         # self.detrend_zscore_seasonality()
-        self.detrend_zscore_monthly()
+        # self.detrend_zscore_monthly()
         # self.zscore()
 
 
@@ -1810,8 +1810,8 @@ class statistic_analysis():
 
         for period in period_list:
 
-            fdir = result_root + rf'extraction_original_val\LAI\{period}\\'
-            outdir = result_root + rf'trend_analysis\\original\\{period}\\'
+            fdir = result_root + rf'zscore\LAI\{period}\\'
+            outdir = result_root + rf'trend_analysis\\zscore\\{period}\\'
             Tools().mk_dir(outdir, force=True)
             for f in os.listdir(fdir):
                 outf=outdir+f.split('.')[0]
@@ -2166,7 +2166,7 @@ class frequency_analysis():
     def __init__(self):
 
         # This class is used to calculate the structural equation model
-        self.this_class_arr = result_root + 'Data_frame\\Frequency\\\LAI3g_MCD_2003_2018\MCD\\'
+        self.this_class_arr = result_root + 'Data_frame\\Frequency\\'
 
         self.dff = self.this_class_arr + 'frequency_dataframe.df'
 
@@ -2187,9 +2187,15 @@ class frequency_analysis():
 
         # 3. plot frequency heatmap
 
-        df, dff = self.__load_df()
-        df_clean = self.clean_df(df)
-        self.frenquency_heatmap(df_clean)
+        # df, dff = self.__load_df()
+        # df_clean = self.clean_df(df)
+        # self.frenquency_heatmap(df_clean)
+
+        ### 3. plot heatmap differences between trendy and obs
+
+
+        self.frenquency_heatmap_differences()
+
 
         ## 4. plot frequency bar
         # self.frenquency_heatmap_bar(df_clean)
@@ -2380,6 +2386,90 @@ class frequency_analysis():
 
 
             plt.title(f'Trendy_{region}')
+
+        plt.show()
+        plt.close()
+        #     plt.savefig(result_root + rf'Data_frame\\Frequency\\Trendy_{region}.pdf', dpi=300, )
+        #     plt.close()
+
+    def frenquency_heatmap_differences(self): ## to address reviewer's question
+        df_obs = T.load_df(self.this_class_arr + '\MCD\\frequency_dataframe.df')
+        df_trendy = T.load_df(self.this_class_arr + '\Trendy_ensemble\\frequency_dataframe.df')
+
+        df_obs_clean=self.clean_df(df_obs)
+        df_trendy_clean = self.clean_df(df_trendy)
+
+        regions = ['Humid', 'Dryland']
+        cm=1/2.54
+
+        for region in regions:
+            plt.figure(figsize=(15*cm, 7*cm))
+
+            df_obs_temp=df_obs_clean[df_obs_clean['HI_class']==region]
+            df_trendy_temp=df_trendy_clean[df_trendy_clean['HI_class']==region]
+
+            threshold_early_list = [0, 0.5, 1, 1.5, 2, 2.5, 3]
+
+            threshold_late_list = [-3, -2.5, -2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2, 2.5, 3]
+
+            threshold_late_list_reverse = threshold_late_list
+            threshold_early_list_reverse = threshold_early_list[::-1]
+
+            threshold_early_list_str = [f'{i:.5f}' for i in threshold_early_list]
+            threshold_late_list_str = [f'{i:.5f}' for i in threshold_late_list]
+
+
+            x_list = []
+            y_list = []
+            z_list = []
+
+            for x in threshold_early_list_str:
+                for y in threshold_late_list_str:
+                    key=f'{x}-{y}'
+                    if key not in df_obs_temp.keys():
+                        continue
+                    if key not in df_trendy_temp.keys():
+                        continue
+                    vals_obs = df_obs_temp[key].to_list()
+                    vals_trendy = df_trendy_temp[key].to_list()
+                    # plt.hist(vals,bins=20)
+                    # plt.show()
+
+                    vals_diff = np.array(vals_obs)-np.array(vals_trendy)
+                    # vals[vals==0]=np.nan
+                    vals_mean = np.nanmean(vals_diff)
+                    z_list.append(vals_diff)
+                    x_list.append(x)
+                    y_list.append(y)
+
+            z_list=np.array(z_list)
+            z_list=z_list.reshape(len(threshold_early_list_str)-1,len(threshold_late_list_str)-1)
+            # z_list_T = z_list.T
+            z_list_T = z_list
+            z_list_T = z_list_T[::-1]
+            label_matrix=abs(z_list_T)
+            label_matrix=np.round(label_matrix,2)
+            print(label_matrix)
+            # np.save(result_root + rf'Data_frame\\Frequency\\LAI3g_MCD_2003_2018\\MCD_{region}.npy', label_matrix)
+            # exit()
+
+
+            ax=sns.heatmap(z_list_T, annot=label_matrix, linewidths=0.75,yticklabels=threshold_early_list_str,
+                           xticklabels=threshold_late_list_str,cmap='RdBu',vmin=-15,vmax=15,
+                           annot_kws={'fontsize': 8},
+                           cbar_kws={'label': 'Frenquency (%)','ticks':[-15, -10,-5, 0, 5, 10,15]},fmt='.1f')
+            threshold_early_list_str_format = [f'{i:.2f}' for i in threshold_early_list_reverse]
+            threshold_late_list_str_format = [f'{i:.2f}' for i in threshold_late_list_reverse]
+
+            ax.set_xticklabels(threshold_late_list_str_format, rotation=45, horizontalalignment='right')
+
+            ax.set_yticklabels(threshold_early_list_str_format, rotation=0, horizontalalignment='right')
+            cbar=ax.collections[0].colorbar
+            cbar.ax.set_yticklabels([15, 10, 5, 0, 5, 10,15])
+            # plt.tight_layout()
+
+
+            plt.title(f'Diff_{region}')
 
         plt.show()
         plt.close()
@@ -3386,7 +3476,7 @@ class build_dataframe():
 
         df = self.__gen_df_init(self.dff)
         # df=self.foo1(df)
-        # df=self.add_detrend_zscore_to_df(df)
+        df=self.add_detrend_zscore_to_df(df)
         #
         # df = self.add_row(df)
         #
@@ -3403,7 +3493,7 @@ class build_dataframe():
 
         # df=self.show_field(df)
         # df = self.drop_field_df(df)
-        df=self.rename_dataframe_columns(df)
+        # df=self.rename_dataframe_columns(df)
 
         T.save_df(df, self.dff)
         self.__df_to_excel(df, self.dff)
@@ -3486,11 +3576,11 @@ class build_dataframe():
         return df
 
     def add_detrend_zscore_to_df(self,df):
-        period_list = ['early', 'peak', 'late','early_peak']
+        period_list = ['peak', ]
         for period in period_list:
 
 
-            fdir=result_root + rf'detrend_zscore\Trendy_SM\{period}\\'
+            fdir=result_root + rf'detrend_zscore\climate_monthly\{period}\\'
 
             for f in os.listdir(fdir):
 
@@ -4739,8 +4829,8 @@ class SEM_wen_ET:
 
     def clean_df(self, df):
         df = df[df['row'] < 120]
-        # df = df[df['HI_class'] == 'Humid']
-        df = df[df['HI_class'] == 'Dryland']
+        df = df[df['HI_class'] == 'Humid']
+        # df = df[df['HI_class'] == 'Dryland']
         df = df[df['max_trend'] < 10]
         df = df[df['early_peak_MCD'] > 0]
         ## late <early
@@ -4755,63 +4845,53 @@ class SEM_wen_ET:
     def model_description_not_detrend(self):
         desc_water_limited_SMroot = '''
                             # regressions
-
-                            early_peak_MCD~early_Temp+early_precip
-                            peak_Et~  early_peak_MCD
-
-                            peak_SMroot~  early_peak_MCD+peak_precip+peak_Et
-
-                            late_MCD ~ peak_SMroot + late_Temp
-                            late_MCD~peak_precip
-
-
+  # regressions
+                                   early_peak_MCD~early_Temp+early_precip
+                            early_peak_Et~ early_peak_MCD
+                            late_SMroot~early_peak_Et+peak_precip
+                           
+                    
                             # residual correlations
                              early_peak_MCD~~early_peak_MCD
-                                peak_SMroot~~peak_SMroot
-                                late_MCD~~late_MCD
-                                peak_Et~~peak_Et
-
+                                late_SMroot~~late_SMroot
+                                early_peak_Et~~early_peak_Et
+                                
                                 early_peak_MCD~~early_Temp
                                 early_peak_MCD~~early_precip
-                                peak_Et~~early_peak_MCD
-                                peak_SMroot~~early_peak_MCD
-                                peak_SMroot~~peak_precip
-                                peak_SMroot~~peak_Et
-                                
-                                
-                                late_MCD~~peak_SMroot
-                                late_MCD~~late_Temp
-                                late_MCD~~peak_precip
+                       
+                                late_SMroot~~early_peak_Et
+                                late_SMroot~~peak_precip
+                     
 
                             '''
 
         desc_energy_limited_SMroot = '''
                                     # regressions
 
-                                    early_peak_MCD~early_Temp+early_precip
+                                   early_peak_MCD~early_Temp+early_precip
+                            early_peak_Et~ early_peak_MCD
+                            peak_SMroot~early_peak_Et+peak_precip
+                           
+                    
+                            # residual correlations
+                             early_peak_MCD~~early_peak_MCD
+                                peak_SMroot~~peak_SMroot
+                                early_peak_Et~~early_peak_Et
+                                
+                               
 
-                                    peak_SMroot~  early_peak_MCD+peak_precip
-
-                                    late_MCD ~ peak_SMroot + late_Temp
-                                    late_MCD~peak_precip
-
-
-                                    # residual correlations
-                                     early_peak_MCD~~early_peak_MCD
-                                        peak_SMroot~~peak_SMroot
-                                        late_MCD~~late_MCD
-
-                                        early_peak_MCD~~early_Temp
-                                        early_peak_MCD~~early_precip
-                                        peak_SMroot~~early_peak_MCD
-                                        peak_SMroot~~peak_precip
-                                        late_MCD~~peak_SMroot
-                                        late_MCD~~late_Temp
-                                        late_MCD~~peak_precip
-
+                                early_peak_MCD~~early_Temp
+                                early_peak_MCD~~early_precip
+                       
+                                peak_SMroot~~early_peak_Et
+                                peak_SMroot~~peak_precip
+                                
+                               
+                              
+                            
                                     '''
 
-        return desc_water_limited_SMroot
+        return desc_energy_limited_SMroot
 
 
     def SEM_model(self, df, desc):
@@ -4820,11 +4900,11 @@ class SEM_wen_ET:
 
         result = mod.inspect()
         T.print_head_n(result)
-        outf = self.outdir + f'water_limited_MCD'
+        outf = self.outdir + f'energy_limited_MCD'
         T.save_df(result, outf + '.df')
         T.df_to_excel(result, outf + '.xlsx')
 
-        outf = self.outdir + 'water_limited_MCD'
+        outf = self.outdir + 'energy_limited_MCD'
         semopy.report(mod, outf)
 
 
@@ -6295,7 +6375,7 @@ def main():
     # Phenology().run()
     # process_LAI().run()
     # statistic_analysis().run()
-    # frequency_analysis().run()
+    frequency_analysis().run()
     # frequency_analysis_for_two_period().run()
 
     # trends_seasonal_feedback().run()
@@ -6303,7 +6383,7 @@ def main():
     # build_dataframe().run()
     # long_term_trends().run()
     # SEM_wen().run()
-    SEM_wen_ET().run()
+    # SEM_wen_ET().run()
     # SEM_wen_for_individual_model().run()
     # SEM_anaysis().run()
 
