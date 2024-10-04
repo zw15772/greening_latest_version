@@ -1783,7 +1783,8 @@ class statistic_analysis():
     def __init__(self):
         pass
     def run(self):
-        self.trend_analysis()
+        # self.trend_analysis()
+        self.trend_analysis_plot()
         # self.detrend_zscore()
         # self.detrend_zscore_seasonality()
         # self.detrend_zscore_monthly()
@@ -1855,6 +1856,119 @@ class statistic_analysis():
                 # plt.show()
 
     pass
+
+    def trend_analysis_plot(self):
+        outdir = result_root + rf'trend_analysis\\trend_analysis_plot\\'
+
+        period_list = [ 'late', 'early_peak', 'early_peak_late']
+        # flist = self.get_trend_analysis_flist()
+        flist_all_product = ['MCD_trend.tif', 'CABLE-POP_S2_lai_trend.tif', 'CLASSIC_S2_lai_trend.tif',
+                             'CLM5_trend.tif', 'IBIS_S2_lai_trend.tif',
+                             'ISAM_S2_LAI_trend.tif', 'ISBA-CTRIP_S2_lai_trend.tif',
+                             'JSBACH_S2_lai_trend.tif', 'LPX-Bern_S2_lai_trend.tif',
+                             'VISIT_S2_lai_trend.tif']
+        period_rename_dict = {
+            'late': 'Late season',
+            'early_peak': 'Early- and peak season',
+            'early_peak_late': 'Growing season',
+        }
+
+        # plt.show()
+        for period in period_list:
+            count = 1
+            plt.figure(figsize=(11, 7))
+            fdir = result_root + rf'trend_analysis\\zscore\\{period}\\'
+            outdir_i = join(outdir, period)
+            T.mk_dir(outdir_i, force=True)
+            for f in tqdm(flist_all_product):
+                if not f.endswith('.tif'):
+                    continue
+                if '_p_value' in f:
+                    continue
+
+                if 'MOD' in f:
+                    continue
+                if 'ensemble' in f:
+                    continue
+                if 'ORCHIDEE' in f:
+                    continue
+                if 'JULES' in f:
+                    continue
+                if 'LPJ' in f:
+                    continue
+                if 'OCN' in f:
+                    continue
+                if 'SDGVM' in f:
+                    continue
+                if 'YIBs' in f:
+                    continue
+                ax = plt.subplot(5,2,count)
+                # print(count, f)
+                count = count + 1
+                # if not count == 9:
+                #     continue
+
+                fpath = join(fdir,f)
+                arr, originX, originY, pixelWidth, pixelHeight = ToRaster().raster2array(fpath)
+                arr = Tools().mask_999999_arr(arr, warning=False)
+                arr_m = ma.masked_where(np.isnan(arr), arr)
+                lon_list = np.arange(originX, originX + pixelWidth * arr.shape[1], pixelWidth)
+                lat_list = np.arange(originY, originY + pixelHeight * arr.shape[0], pixelHeight)
+                lon_list, lat_list = np.meshgrid(lon_list, lat_list)
+                m = Basemap(projection='cyl', llcrnrlat=30, urcrnrlat=90, llcrnrlon=-180, urcrnrlon=180, resolution='i',ax=ax)
+                ret = m.pcolormesh(lon_list, lat_list, arr_m, cmap='RdBu', zorder=-1, vmin=-0.1, vmax=0.1)
+                coastlines = m.drawcoastlines(zorder=100, linewidth=0.2)
+                plt.title(f.replace('_trend.tif','').replace('_S2','').replace('_lai','').replace('_LAI','').replace('_S2_lai','').replace('MCD','MODIS'))
+                # plt.show()
+            cax = plt.axes([0.5-0.15, 0.05, 0.3, 0.02])
+            cb = plt.colorbar(ret, ax=ax,cax=cax, orientation='horizontal')
+            cb.set_label(f'{period_rename_dict[period]} zscore trend (/yr)',labelpad=-40)
+            outf = join(outdir_i, f'{period}.pdf')
+            plt.subplots_adjust(wspace=0.029, hspace=0.)
+
+            plt.savefig(outf, dpi=600)
+            plt.close()
+            # plt.show()
+            # T.open_path_and_file(outdir)
+            # exit()
+
+    def get_trend_analysis_flist(self):
+
+        period_list = ['late', 'early_peak', 'early_peak_late']
+        flist_all_product = ['MCD_trend.tif','CABLE-POP_S2_lai_trend.tif', 'CLASSIC_S2_lai_trend.tif',
+                 'CLM5_trend.tif', 'IBIS_S2_lai_trend.tif',
+                 'ISAM_S2_LAI_trend.tif', 'ISBA-CTRIP_S2_lai_trend.tif',
+                 'JSBACH_S2_lai_trend.tif', 'LPX-Bern_S2_lai_trend.tif',
+                  'VISIT_S2_lai_trend.tif']
+        for period in period_list:
+            count = 1
+            plt.figure(figsize=(11, 7))
+            fdir = result_root + rf'trend_analysis\\zscore\\{period}\\'
+            flist = []
+            for f in tqdm(T.listdir(fdir)):
+                if not f.endswith('.tif'):
+                    continue
+                if '_p_value' in f:
+                    continue
+
+                if 'MOD' in f:
+                    continue
+                if 'ensemble' in f:
+                    continue
+                if 'ORCHIDEE' in f:
+                    continue
+                if 'JULES' in f:
+                    continue
+                if 'LPJ' in f:
+                    continue
+                if 'OCN' in f:
+                    continue
+                if 'SDGVM' in f:
+                    continue
+                if 'YIBs' in f:
+                    continue
+                flist.append(f)
+            print(flist);exit()
 
     def detrend_zscore(self): #
 
@@ -2385,7 +2499,7 @@ class frequency_analysis():
             # plt.tight_layout()
 
 
-            plt.title(f'Trendy_{region}')
+            plt.title(f'MCD_{region}')
 
         plt.show()
         plt.close()
@@ -2424,20 +2538,26 @@ class frequency_analysis():
             z_list = []
 
             for x in threshold_early_list_str:
+
                 for y in threshold_late_list_str:
                     key=f'{x}-{y}'
                     if key not in df_obs_temp.keys():
                         continue
+
                     if key not in df_trendy_temp.keys():
                         continue
+                    ##
                     vals_obs = df_obs_temp[key].to_list()
                     vals_trendy = df_trendy_temp[key].to_list()
                     # plt.hist(vals,bins=20)
                     # plt.show()
 
-                    vals_diff = np.array(vals_obs)-np.array(vals_trendy)
+                    vals_obs=np.array(vals_obs)
+                    vals_trendy=np.array(vals_trendy)
                     # vals[vals==0]=np.nan
-                    vals_mean = np.nanmean(vals_diff)
+                    vals_obs_mean =abs(np.nanmean(vals_obs))
+                    vals_trendy_mean = abs(np.nanmean(vals_trendy))
+                    vals_diff = vals_trendy_mean-vals_obs_mean
                     z_list.append(vals_diff)
                     x_list.append(x)
                     y_list.append(y)
@@ -2447,7 +2567,9 @@ class frequency_analysis():
             # z_list_T = z_list.T
             z_list_T = z_list
             z_list_T = z_list_T[::-1]
-            label_matrix=abs(z_list_T)
+            # plt.imshow(z_list_T,vmin=-10,vmax=10,cmap='RdBu')
+            # plt.show()
+            label_matrix=z_list_T
             label_matrix=np.round(label_matrix,2)
             print(label_matrix)
             # np.save(result_root + rf'Data_frame\\Frequency\\LAI3g_MCD_2003_2018\\MCD_{region}.npy', label_matrix)
@@ -2465,7 +2587,7 @@ class frequency_analysis():
 
             ax.set_yticklabels(threshold_early_list_str_format, rotation=0, horizontalalignment='right')
             cbar=ax.collections[0].colorbar
-            cbar.ax.set_yticklabels([15, 10, 5, 0, 5, 10,15])
+            cbar.ax.set_yticklabels([-15, -10, -5, 0, 5, 10,15])
             # plt.tight_layout()
 
 
@@ -3464,11 +3586,11 @@ class build_dataframe():
 
     def __init__(self):
 
-        self.this_class_arr = result_root + 'Data_frame\detrend_zscore_new\\'
+        self.this_class_arr = result_root + 'Data_frame\distibution_across_pft\\'
         # self.this_class_arr = result_root + rf'Data_frame\Frequency\Trendy_ensemble\\'
 
         Tools().mk_dir(self.this_class_arr, force=True)
-        self.dff = self.this_class_arr + 'detrend_zscore_new.df'
+        self.dff = self.this_class_arr + 'distibution.df'
         self.P_PET_fdir = data_root+rf'\Base_data\aridity_P_PET_dic\\'
         pass
 
@@ -3476,15 +3598,17 @@ class build_dataframe():
 
         df = self.__gen_df_init(self.dff)
         # df=self.foo1(df)
-        df=self.add_detrend_zscore_to_df(df)
+        # df=self.foo2(df)
+        df=self.add_trend_to_df(df)
+        # df=self.add_detrend_zscore_to_df(df)
         #
-        # df = self.add_row(df)
-        #
-        # df = self.add_max_trend_to_df(df)
-        #
-        # df = self.add_NDVI_mask(df)
-        #
-        # df = self.add_GLC_landcover_data_to_df(df)
+        df = self.add_row(df)
+
+        df = self.add_max_trend_to_df(df)
+
+        df = self.add_NDVI_mask(df)
+
+        df = self.add_GLC_landcover_data_to_df(df)
         #
         # P_PET_dic = self.P_PET_ratio(self.P_PET_fdir)
         # P_PET_reclass_dic = self.P_PET_reclass_2(P_PET_dic)
@@ -3562,14 +3686,16 @@ class build_dataframe():
 
     def foo2(self, df):  # 新建trend
 
-        f = 'zscore\daily_Y\peak/during_peak_LAI3g_zscore.npy'
-        val_array = np.load(f)
-        val_dic = DIC_and_TIF().spatial_arr_to_dic(val_array)
+        f = rf'D:\Greening\Result\Data_frame\Frequency\MCD\tif\MCD\MCD\\strong_stabilization.tif'
+        arr, originX, originY, pixelWidth, pixelHeight = ToRaster().raster2array(f)
+
+        dic=DIC_and_TIF().spatial_arr_to_dic(arr)
+
 
         # exit()
 
         pix_list = []
-        for pix in tqdm(val_dic):
+        for pix in tqdm(dic):
             pix_list.append(pix)
         df['pix'] = pix_list
 
@@ -3619,6 +3745,7 @@ class build_dataframe():
                 df[f_name] = NDVI_list
         return df
 
+
     def add_row(self,df):
         r_list=[]
         for i, row in tqdm(df.iterrows(), total=len(df)):
@@ -3659,6 +3786,43 @@ class build_dataframe():
                     val_list.append(np.nan)
                     continue
                 val_list.append(val)
+            df[f_name] = val_list
+
+        return df
+
+
+    def add_trend_to_df(self, df):
+
+
+        fdir = result_root+rf'\Data_frame\Frequency\MCD\tif\MCD\MCD\\'
+        for f in (os.listdir(fdir)):
+            # print()
+
+            if not f.endswith('.tif'):
+                continue
+            if 'freq' in f:
+                continue
+
+
+            arr, originX, originY, pixelWidth, pixelHeight = ToRaster().raster2array(fdir+f)
+            val_dic=DIC_and_TIF().spatial_arr_to_dic(arr)
+            f_name = f.split('.')[0]+'_TRENDY_ensemble'
+            print(f_name)
+            # exit()
+            val_list = []
+            for i, row in tqdm(df.iterrows(), total=len(df)):
+
+                pix = row['pix']
+                if not pix in val_dic:
+                    val_list.append(np.nan)
+                    continue
+                val = val_dic[pix]
+
+                if val < -99:
+                    val_list.append(np.nan)
+                    continue
+                val_list.append(val)
+
             df[f_name] = val_list
 
         return df
@@ -6375,7 +6539,7 @@ def main():
     # Phenology().run()
     # process_LAI().run()
     # statistic_analysis().run()
-    frequency_analysis().run()
+    # frequency_analysis().run()
     # frequency_analysis_for_two_period().run()
 
     # trends_seasonal_feedback().run()

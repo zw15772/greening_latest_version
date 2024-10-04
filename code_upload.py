@@ -1,4 +1,6 @@
 # coding=utf-8
+import pprint
+
 import matplotlib.pyplot as plt
 from lytools import *
 import xymap
@@ -303,10 +305,12 @@ class frequency_analysis():  # Amplification and Stabilization analysis
         # This class is used to calculate the structural equation model
         self.this_class_arr = result_root + 'Data_frame\\Frequency\\MCD\\'
         self.this_class_tif = result_root + 'Data_frame\\Frequency\\MCD\\tif\\'
+        self.this_class_png = result_root + 'Data_frame\\Frequency\\MCD\\png\\'
 
         self.dff = self.this_class_arr + 'frequency_dataframe.df'
 
         Tools().mkdir(self.this_class_arr, force=True)
+        Tools().mkdir(self.this_class_png, force=True)
 
 
         pass
@@ -346,6 +350,12 @@ class frequency_analysis():  # Amplification and Stabilization analysis
 
         # 4. create spatial map of frequency of stabilization and amplification
         # self.spatial_frequency()
+        # self.spatial_frequency_hist_statistic()
+        self.spatial_frequency_bar_statistic()
+        # self.spatial_frequency_delta()
+        # self.plot_spatial_frequency_delta()
+        # self.plot_spatial_frequency_delta_hist()
+        # self.pdf_stabilization()
 
 
         pass
@@ -558,11 +568,11 @@ class frequency_analysis():  # Amplification and Stabilization analysis
 
         # plt.imshow(rgb_arr)
         # plt.show()
-        outdir = join(self.this_class_tif,'MCD')
+        outdir = join(self.this_class_tif,'Trendy_ensemble')
         fdir_early = join(data_root,'detrended_zscore_LAI/early_peak')
         fdir_late = join(data_root,'detrended_zscore_LAI/late')
         for f in T.listdir(fdir_early):
-            if not 'MCD' in f:
+            if not 'Trendy_ensemble' in f:
                 continue
             outdir_i = join(outdir,f.replace('.npy',''))
             T.mk_dir(outdir_i,force=True)
@@ -716,6 +726,261 @@ class frequency_analysis():  # Amplification and Stabilization analysis
         #     # exit()
         # T.open_path_and_file(outdir)
         # exit()
+
+    def spatial_frequency_hist_statistic(self):
+        product1 = 'MCD'
+        # product1 = 'Trendy_ensemble'
+        arr_list_1, cols = self.spatial_frequency_i(product1)
+        for i in range(len(cols)):
+            col = cols[i]
+            arr1 = arr_list_1[i]
+            arr1_flatten = arr1.flatten()
+            arr1_flatten = arr1_flatten[~np.isnan(arr1_flatten)]
+            x1,y1 = Plot().plot_hist_smooth(arr1_flatten,bins=25,alpha=0.5,range=(0,1),label=col,interpolate_window=11)
+            # plt.plot(x1,y1,label=col)
+            plt.plot(x1,y1)
+        plt.title(f'{product1}')
+        plt.legend()
+        plt.show()
+        pass
+
+    def spatial_frequency_bar_statistic(self):
+        # product1 = 'MCD'
+        product1 = 'Trendy_ensemble'
+        arr_list_1, cols = self.spatial_frequency_i(product1)
+        x_list = []
+        y_list = []
+        for i in range(len(cols)):
+            col = cols[i]
+            arr1 = arr_list_1[i]
+            arr1_flatten = arr1.flatten()
+            arr1_flatten = arr1_flatten[~np.isnan(arr1_flatten)]
+            arr1_flatten_50 = arr1_flatten[arr1_flatten>0.5]
+            x_list.append(col)
+            y_list.append(len(arr1_flatten_50)/len(arr1_flatten))
+        plt.barh(x_list,y_list)
+        plt.xlim(0,0.3)
+        plt.title(f'{product1}')
+        plt.tight_layout()
+        plt.show()
+
+        pass
+
+
+
+    def spatial_frequency_i(self,product):
+        # product = 'Trendy_ensemble'
+        # product = 'MCD'
+        fdir_early = join(data_root,'detrended_zscore_LAI/early_peak')
+        fdir_late = join(data_root,'detrended_zscore_LAI/late')
+        for f in T.listdir(fdir_early):
+            if not product in f:
+                continue
+            fpath_early = join(fdir_early,f)
+            fpath_late = join(fdir_late,f)
+            early_dict = T.load_npy(fpath_early)
+            late_dict = T.load_npy(fpath_late)
+            result_dict = {}
+            for pix in tqdm(early_dict,desc=f):
+                early_vals = early_dict[pix]
+                if not pix in late_dict:
+                    continue
+                late_vals = late_dict[pix]
+                father = 0
+                son_amplification = 0
+                son_weak_stabilization = 0
+                son_strong_stabilization = 0
+                for i in range(len(early_vals)):
+                    early_val = early_vals[i]
+                    late_val = late_vals[i]
+                    if early_val < 0:
+                        continue
+                    father += 1
+                    if late_val > early_val:
+                        son_amplification += 1
+                    elif late_val < early_val and late_val > 0:
+                        son_weak_stabilization += 1
+                    else:
+                        son_strong_stabilization += 1
+                if father == 0:
+                    continue
+                ratio_amplification = son_amplification/father
+                ratio_weak_stabilization = son_weak_stabilization/father
+                ratio_strong_stabilization = son_strong_stabilization/father
+                result_dict[pix] = {
+                    'ratio_amplification':ratio_amplification,
+                    'ratio_weak_stabilization':ratio_weak_stabilization,
+                    'ratio_strong_stabilization':ratio_strong_stabilization,
+                }
+            if len(result_dict) == 0:
+                continue
+            df = T.dic_to_df(result_dict,'pix')
+            cols = ['ratio_amplification','ratio_weak_stabilization','ratio_strong_stabilization']
+            # cols = []
+            arr_list = []
+            for col in cols:
+                spatial_dict = T.df_to_spatial_dic(df,col)
+                arr = DIC_and_TIF().pix_dic_to_spatial_arr(spatial_dict)
+                arr = np.array(arr)
+                arr_list.append(arr)
+            arr_list = np.array(arr_list)
+
+            return arr_list,cols
+    def spatial_frequency_delta(self):
+        outdir = join(self.this_class_tif,'spatial_frequency_delta')
+        T.mk_dir(outdir,force=True)
+        product1 = 'MCD'
+        product2 = 'Trendy_ensemble'
+        arr_list_1,cols = self.spatial_frequency_i(product1)
+        arr_list_2,cols = self.spatial_frequency_i(product2)
+        for i in range(len(arr_list_1)):
+            arr1 = arr_list_1[i]
+            arr2 = arr_list_2[i]
+            arr_delta = -arr1+arr2
+            arr_delta = arr_delta * 100.
+            outf = join(outdir,f'{cols[i]}.tif')
+            DIC_and_TIF().arr_to_tif(arr_delta,outf)
+        #     plt.figure()
+        #     plt.imshow(arr_delta,interpolation='nearest',cmap='RdBu',vmin=-30,vmax=30)
+        #     plt.title(cols[i])
+        #     plt.colorbar()
+        # plt.show()
+        T.open_path_and_file(outdir)
+    def plot_spatial_frequency_delta(self):
+        fdir = join(self.this_class_tif,'spatial_frequency_delta')
+        outdir = join(self.this_class_png,'spatial_frequency_delta')
+        T.mk_dir(outdir,force=True)
+        flist = ['ratio_amplification','ratio_weak_stabilization','ratio_strong_stabilization'][::-1]
+        new_name_dict = {
+            'ratio_amplification':'c. Amplification',
+            'ratio_weak_stabilization':'b. Weak stabilization',
+            'ratio_strong_stabilization':'a. Strong stabilization',
+        }
+        count = 1
+        for f in flist:
+            fpath = join(fdir,f+'.tif')
+            ax = plt.subplot(3, 1, count)
+            count = count + 1
+            arr, originX, originY, pixelWidth, pixelHeight = ToRaster().raster2array(fpath)
+            arr = Tools().mask_999999_arr(arr, warning=False)
+            arr_m = ma.masked_where(np.isnan(arr), arr)
+            lon_list = np.arange(originX, originX + pixelWidth * arr.shape[1], pixelWidth)
+            lat_list = np.arange(originY, originY + pixelHeight * arr.shape[0], pixelHeight)
+            lon_list, lat_list = np.meshgrid(lon_list, lat_list)
+            m = Basemap(projection='cyl', llcrnrlat=30, urcrnrlat=90, llcrnrlon=-180, urcrnrlon=180, resolution='i',
+                        ax=ax)
+            ret = m.pcolormesh(lon_list, lat_list, arr_m, cmap='RdBu', zorder=-1, vmin=-30, vmax=30)
+            coastlines = m.drawcoastlines(zorder=100, linewidth=0.2)
+            # plt.title(f.replace('_trend.tif', '').replace('_S2', '').replace('_lai', '').replace('_LAI', ''))
+            plt.title(new_name_dict[f],loc='left')
+        # plt.tight_layout()
+
+        cax = plt.axes([0.5-0.3/2, 0.1, 0.3, 0.02])
+        plt.colorbar(ret, ax=ax, cax=cax, orientation='horizontal', extend='both')
+        outf = join(outdir, 'spatial_frequency_delta.png')
+        # plt.show()
+
+        plt.savefig(outf,dpi=600)
+        T.open_path_and_file(outdir)
+    def plot_spatial_frequency_delta_hist(self):
+        fdir = join(self.this_class_tif,'spatial_frequency_delta')
+        outdir = join(self.this_class_png,'spatial_frequency_delta_hist')
+        T.mk_dir(outdir,force=True)
+        flist = ['ratio_amplification','ratio_weak_stabilization','ratio_strong_stabilization'][::-1]
+        new_name_dict = {
+            'ratio_amplification':'c. Amplification',
+            'ratio_weak_stabilization':'b. Weak stabilization',
+            'ratio_strong_stabilization':'a. Strong stabilization',
+        }
+        count = 1
+        for f in flist:
+            fpath = join(fdir,f+'.tif')
+            # ax = plt.subplot(3, 1, count)
+            count = count + 1
+            arr, originX, originY, pixelWidth, pixelHeight = ToRaster().raster2array(fpath)
+            arr = Tools().mask_999999_arr(arr, warning=False)
+            arr_m = ma.masked_where(np.isnan(arr), arr)
+            arr_m = arr_m.flatten()
+            arr_m = arr_m[~np.isnan(arr_m)]
+            plt.figure()
+            x,y = Plot().plot_hist_smooth(arr_m,bins=40,alpha=1,interpolate_window=11,range=[-80,80])
+            plt.plot(x,y,label=f)
+            plt.title(f.replace('_trend.tif', '').replace('_S2', '').replace('_lai', '').replace('_LAI', ''))
+            # plt.legend()
+        plt.show()
+
+
+
+
+    def pdf_stabilization(self):  ## reviewer's comment get pdf of stability
+        dic_lc_file = data_root + 'Base_data/LC_reclass2.npy'
+        dic_lc = T.load_npy(dic_lc_file)
+
+
+
+        tiff_mask_landcover_change = data_root + 'Base_data/lc_trend/max_trend.tif'
+
+        array_mask_landcover_change, originX, originY, pixelWidth, pixelHeight =ToRaster().raster2array(
+
+            tiff_mask_landcover_change)
+        array_mask_landcover_change[array_mask_landcover_change * 20 > 10] = np.nan
+        array_mask_landcover_change = DIC_and_TIF().spatial_arr_to_dic(array_mask_landcover_change)
+
+        outdir = join(self.this_class_tif,'distribution')
+        T.mk_dir(outdir,force=True)
+        product1 = 'MCD'
+
+        arr_list_1,cols = self.spatial_frequency_i(product1)
+        dic_data=DIC_and_TIF().spatial_arr_to_dic(arr_list_1[2])
+        landcover_list=['DF','EF','Grass','Shrubs',]
+        flag = 1
+        centimeter = 2.54
+
+
+        spatial_dic={}
+        for pix in dic_data:
+            if pix not in dic_lc:
+                continue
+            landcover_type = dic_lc[pix]
+            stabilization=dic_data[pix]
+
+            spatial_dic[pix]= {
+                'landcover_type':landcover_type,
+                'stabilization':stabilization
+            }
+        ## plot stacked bar
+        stabilization_dic={}
+        range_list = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+        for range in range_list:
+            stabilization_dic[range]=[]
+        for lc in landcover_list:
+            stabilization_list=[]
+            for pix in spatial_dic:
+                if spatial_dic[pix]['landcover_type']!=lc:
+                    continue
+                stabilization = spatial_dic[pix]['stabilization']
+
+                stabilization_list.append(stabilization)
+
+            stabilization_dic[lc]=stabilization_list
+
+
+
+
+
+        plt.show()
+
+
+
+
+
+
+
+
+
+      ### plot stacked bar
+
+
 
     def get_raster_projections(self, rasterfn):
         '''
@@ -1515,29 +1780,6 @@ class Stabilization_amplification_longterm_trends:
                 # outf=join(outdir,f'{region}_{period}.pdf')
                 # plt.savefig(outf)
                 # plt.close()
-class trajectory_plot:
-
-    def __init__(self):
-        pass
-    def plot_trajectory(self):
-        ## 1 pick early-and peak season LAI >0 and late season LAI <0 and then extract all climate variables
-        ## 2 plot
-        f_LAI_early_peak = rf'D:\Greening\Result\detrend_zscore\LAI\\early_peak\\MCD.npy'
-        f_LAI_late = rf'D:\Greening\Result\detrend_zscore\LAI\\late\\MCD.npy'
-        climate_var_fdir = rf'D:\Greening\Result\detrend_zscore\climate_monthly\early'
-
-        dic_early_peak_LAI = T.load_npy(f_LAI_early_peak)
-        dic_late_LAI = T.load_npy(f_LAI_late)
-
-        for pix in dic_early_peak_LAI:
-            early_val=dic_early_peak_LAI[pix]
-            late_val=dic_late_LAI[pix]
-
-
-
-        ## plot trajectory
-
-        pass
 class Dataframe_per_value_transform:
 
     def __init__(self, df, variable_list, start_year, end_year):
@@ -1625,7 +1867,7 @@ def load_split_dataframe(fdir):
 
 def main():
     ## 1. create spatial map and heatmap of frequency of stabilization and amplification [figure1]
-    # frequency_analysis().run()
+    frequency_analysis().run()
 
     ## 2. create SEM model and save the result [figure2]
     # SEM().run()
@@ -1634,7 +1876,7 @@ def main():
     # SEM_anaysis().run()
 
     ## 4. create spatial map of frequency of stabilization and amplification [figure4]
-    Stabilization_amplification_longterm_trends().run()
+    # Stabilization_amplification_longterm_trends().run()
 
     pass
 
