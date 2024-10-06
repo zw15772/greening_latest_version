@@ -344,18 +344,20 @@ class frequency_analysis():  # Amplification and Stabilization analysis
         # df = T.load_df(self.dff)
         #
         # df_clean = self.clean_df(df)
-        # self.frenquency_heatmap(df_clean)
+        # self.frequency_heatmap(df_clean)
 
 
 
         # 4. create spatial map of frequency of stabilization and amplification
         # self.spatial_frequency()
+        # self.frequency_heatmap_differences()
         # self.spatial_frequency_hist_statistic()
-        self.spatial_frequency_bar_statistic()
+        self.plot_spatial_frequency_bar_statistic()
+        # self.spatial_frequency_bar_statistic()
         # self.spatial_frequency_delta()
         # self.plot_spatial_frequency_delta()
         # self.plot_spatial_frequency_delta_hist()
-        # self.pdf_stabilization()
+        # self.stacked_bar_stabilization()
 
 
         pass
@@ -474,7 +476,7 @@ class frequency_analysis():  # Amplification and Stabilization analysis
         pass
 
 
-    def frenquency_heatmap(self,df):
+    def frequency_heatmap(self,df):
         T.print_head_n(df, 10)
 
         # df = df.drop_duplicates(subset=['pix'])
@@ -533,7 +535,7 @@ class frequency_analysis():  # Amplification and Stabilization analysis
             ax=sns.heatmap(z_list_T, annot=label_matrix, linewidths=0.75,yticklabels=threshold_early_list_str,
                            xticklabels=threshold_late_list_str,cmap='RdBu',vmin=-15,vmax=15,
                            annot_kws={'fontsize': 8},
-                           cbar_kws={'label': 'Frenquency (%)','ticks':[-15, -10,-5, 0, 5, 10,15]},fmt='.1f')
+                           cbar_kws={'label': 'frequency (%)','ticks':[-15, -10,-5, 0, 5, 10,15]},fmt='.1f')
             threshold_early_list_str_format = [f'{i:.2f}' for i in threshold_early_list_reverse]
             threshold_late_list_str_format = [f'{i:.2f}' for i in threshold_late_list_reverse]
 
@@ -551,6 +553,101 @@ class frequency_analysis():  # Amplification and Stabilization analysis
         # plt.close()
         #     plt.savefig(result_root + rf'Data_frame\\Frequency\\Trendy_{region}.pdf', dpi=300, )
         #     plt.close()
+
+    def frequency_heatmap_differences(self): ## to address reviewer's question
+        dff_obs = result_root + 'Data_frame\\Frequency\\MCD\\frequency_dataframe.df'
+        dff_trendy = result_root + 'Data_frame\\Frequency\\Trendy_ensemble\\frequency_dataframe.df'
+        df_obs = T.load_df(dff_obs)
+        df_trendy = T.load_df(dff_trendy)
+        df_obs_clean=self.clean_df(df_obs)
+        df_trendy_clean = self.clean_df(df_trendy)
+
+        regions = ['Humid', 'Dryland']
+        cm=1/2.54
+
+        for region in regions:
+            plt.figure(figsize=(15*cm, 7*cm))
+
+            df_obs_temp=df_obs_clean[df_obs_clean['HI_class']==region]
+            df_trendy_temp=df_trendy_clean[df_trendy_clean['HI_class']==region]
+
+            threshold_early_list = [0, 0.5, 1, 1.5, 2, 2.5, 3]
+
+            threshold_late_list = [-3, -2.5, -2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2, 2.5, 3]
+
+            threshold_late_list_reverse = threshold_late_list
+            threshold_early_list_reverse = threshold_early_list[::-1]
+
+            threshold_early_list_str = [f'{i:.5f}' for i in threshold_early_list]
+            threshold_late_list_str = [f'{i:.5f}' for i in threshold_late_list]
+
+
+            x_list = []
+            y_list = []
+            z_list = []
+
+            for x in threshold_early_list_str:
+
+                for y in threshold_late_list_str:
+                    key=f'{x}-{y}'
+                    if key not in df_obs_temp.keys():
+                        continue
+
+                    if key not in df_trendy_temp.keys():
+                        continue
+                    ##
+                    vals_obs = df_obs_temp[key].to_list()
+                    vals_trendy = df_trendy_temp[key].to_list()
+                    # plt.hist(vals,bins=20)
+                    # plt.show()
+
+                    vals_obs=np.array(vals_obs)
+                    vals_trendy=np.array(vals_trendy)
+                    # vals[vals==0]=np.nan
+                    vals_obs_mean =abs(np.nanmean(vals_obs))
+                    vals_trendy_mean = abs(np.nanmean(vals_trendy))
+                    vals_diff = vals_trendy_mean-vals_obs_mean
+                    z_list.append(vals_diff)
+                    x_list.append(x)
+                    y_list.append(y)
+
+            z_list=np.array(z_list)
+            z_list=z_list.reshape(len(threshold_early_list_str)-1,len(threshold_late_list_str)-1)
+            # z_list_T = z_list.T
+            z_list_T = z_list
+            z_list_T = z_list_T[::-1]
+            # plt.imshow(z_list_T,vmin=-10,vmax=10,cmap='RdBu')
+            # plt.show()
+            label_matrix=z_list_T
+            label_matrix=np.round(label_matrix,2)
+            print(label_matrix)
+            # np.save(result_root + rf'Data_frame\\Frequency\\LAI3g_MCD_2003_2018\\MCD_{region}.npy', label_matrix)
+            # exit()
+
+
+            ax=sns.heatmap(z_list_T, annot=label_matrix, linewidths=0.75,yticklabels=threshold_early_list_str,
+                           xticklabels=threshold_late_list_str,cmap='PiYG',vmin=-16,vmax=16,
+                           annot_kws={'fontsize': 7},
+                           cbar_kws={'label': 'frequency (%)','ticks':[-15, -10,-5, 0, 5, 10,15]},fmt='.1f')
+            threshold_early_list_str_format = [f'{i:.2f}' for i in threshold_early_list_reverse]
+            threshold_late_list_str_format = [f'{i:.2f}' for i in threshold_late_list_reverse]
+
+            ax.set_xticklabels(threshold_late_list_str_format, rotation=45, horizontalalignment='right')
+
+            ax.set_yticklabels(threshold_early_list_str_format, rotation=0, horizontalalignment='right')
+            cbar=ax.collections[0].colorbar
+            cbar.ax.set_yticklabels([-15, -10,-5, 0, 5, 10,15])
+            # plt.tight_layout()
+            plt.axis('equal')
+
+
+            plt.title(f'Diff_{region}')
+
+        # plt.show()
+        # plt.close()
+            plt.savefig(result_root + rf'Data_frame\\Frequency\\differences_{region}.pdf', dpi=300, )
+            plt.close()
+        T.open_path_and_file(result_root + rf'Data_frame\\Frequency')
 
 
 
@@ -745,21 +842,113 @@ class frequency_analysis():  # Amplification and Stabilization analysis
         pass
 
     def spatial_frequency_bar_statistic(self):
+        outdir = join(self.this_class_arr, 'spatial_frequency_bar_statistic')
+        T.mkdir(outdir)
+        AI_tif = r"D:\Greening\Data\Base_data\Aridity_Index\aridity_index.tif"
+        AI_arr = DIC_and_TIF().spatial_tif_to_arr(AI_tif)
+        humid_mask = AI_arr > 0.65
+        arid_mask = AI_arr <= 0.65
+        humid_spatial_dict = DIC_and_TIF().spatial_arr_to_dic(humid_mask)
+        arid_spatial_dict = DIC_and_TIF().spatial_arr_to_dic(arid_mask)
         # product1 = 'MCD'
         product1 = 'Trendy_ensemble'
-        arr_list_1, cols = self.spatial_frequency_i(product1)
-        x_list = []
-        y_list = []
+        arr_list, cols = self.spatial_frequency_i(product1)
+        spatial_dict_all = {}
         for i in range(len(cols)):
-            col = cols[i]
-            arr1 = arr_list_1[i]
-            arr1_flatten = arr1.flatten()
-            arr1_flatten = arr1_flatten[~np.isnan(arr1_flatten)]
-            arr1_flatten_50 = arr1_flatten[arr1_flatten>0.5]
-            x_list.append(col)
-            y_list.append(len(arr1_flatten_50)/len(arr1_flatten))
-        plt.barh(x_list,y_list)
-        plt.xlim(0,0.3)
+            arr = arr_list[i]
+            spatial_dict = DIC_and_TIF().spatial_arr_to_dic(arr)
+            spatial_dict_all[cols[i]] = spatial_dict
+        spatial_dict_all['humid'] = humid_spatial_dict
+        spatial_dict_all['arid'] = arid_spatial_dict
+        df = T.spatial_dics_to_df(spatial_dict_all)
+        df = df.dropna()
+        region_list = ['humid','arid']
+        result_dict = {}
+        for region in region_list:
+            df_region = df[df[region] == True]
+            T.print_head_n(df_region,10)
+            result_dict_region = {}
+            for col in cols:
+                df_selected = df_region[df_region[col]>.5]
+                ratio = len(df_selected)/len(df_region)
+                # key = f'{region}_{col}'
+                result_dict_region[col] = ratio
+            result_dict[region] = result_dict_region
+        df_result = T.dic_to_df(result_dict,key_col_str='region')
+        outf = join(outdir,f'{product1}.csv')
+        df_result.to_csv(outf)
+        T.open_path_and_file(outdir)
+    def plot_spatial_frequency_bar_statistic(self):
+        fdir = join(self.this_class_arr, 'spatial_frequency_bar_statistic')
+        product1 = 'MCD'
+        product2 = 'Trendy_ensemble'
+        fpath1 = join(fdir,f'{product1}.csv')
+        fpath2 = join(fdir,f'{product2}.csv')
+        df1 = pd.read_csv(fpath1)
+        df2 = pd.read_csv(fpath2)
+        # df = pd.merge(df1,df2,on='region')
+        T.print_head_n(df1, 10)
+        T.print_head_n(df2, 10)
+        mode_list = ['ratio_amplification','ratio_strong_stabilization','ratio_weak_stabilization']
+        for region in ['humid','arid']:
+            plt.figure()
+            df1_region = df1[df1['region'] == region]
+            df2_region = df2[df2['region'] == region]
+            x_list = []
+            y_list = []
+            for mode in mode_list:
+                val = df1_region[mode].values[0]
+                x_list.append(f'{mode}_{product1}')
+                y_list.append(val)
+            for mode in mode_list:
+                val = df2_region[mode].values[0]
+                x_list.append(f'{mode}_{product2}')
+                y_list.append(val)
+            # print(x_list);exit()
+            result_dict = T.dict_zip(x_list,y_list)
+            x_list_new = ['ratio_amplification_MCD', 'ratio_amplification_Trendy_ensemble',
+                          'ratio_weak_stabilization_MCD', 'ratio_weak_stabilization_Trendy_ensemble',
+                          'ratio_strong_stabilization_MCD', 'ratio_strong_stabilization_Trendy_ensemble']
+            # print(x_list);exit()
+            y_list_new = [result_dict[i] for i in x_list_new]
+            plt.barh(x_list_new,y_list_new)
+            plt.title(f'{region}')
+            plt.xlim(0,.3)
+            plt.tight_layout()
+        plt.show()
+
+    def spatial_frequency_bar_statistic_multi_threshold(self):
+        product1 = 'MCD'
+        # product1 = 'Trendy_ensemble'
+        arr_list_1, cols = self.spatial_frequency_i(product1)
+        threshold_list = [0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
+        color_list = T.gen_colors(len(threshold_list)-1,palette='Blues_r')
+        print(len(color_list))
+        bottom = 0
+
+        for threshold_i in range(len(threshold_list)):
+            if threshold_i == len(threshold_list) - 1:
+                break
+            x_list = []
+            y_list = []
+            for i in range(len(cols)):
+                col = cols[i]
+                arr1 = arr_list_1[i]
+                arr1_flatten = arr1.flatten()
+                arr1_flatten = arr1_flatten[~np.isnan(arr1_flatten)]
+                arr1_flatten_threshold = arr1_flatten[arr1_flatten>=threshold_list[threshold_i]]
+                arr1_flatten_threshold = arr1_flatten_threshold[arr1_flatten_threshold<threshold_list[threshold_i+1]]
+                arr1_flatten_threshold = arr1_flatten_threshold[~np.isnan(arr1_flatten_threshold)]
+                x_list.append(col)
+                y_list.append(len(arr1_flatten_threshold)/len(arr1_flatten))
+            x_list = np.array(x_list)
+            y_list = np.array(y_list)
+            # print(bottom)
+            # print(y_list)
+            plt.bar(x_list, y_list, bottom=bottom, label=threshold_list[threshold_i],color=color_list[threshold_i])
+            bottom += y_list
+            # plt.bar(x_list,y_list)
+            # plt.ylim(0,0.3)
         plt.title(f'{product1}')
         plt.tight_layout()
         plt.show()
@@ -847,7 +1036,9 @@ class frequency_analysis():  # Amplification and Stabilization analysis
         # plt.show()
         T.open_path_and_file(outdir)
     def plot_spatial_frequency_delta(self):
+        # T.color_map_choice();exit()
         fdir = join(self.this_class_tif,'spatial_frequency_delta')
+        # T.open_path_and_file(fdir);exit()
         outdir = join(self.this_class_png,'spatial_frequency_delta')
         T.mk_dir(outdir,force=True)
         flist = ['ratio_amplification','ratio_weak_stabilization','ratio_strong_stabilization'][::-1]
@@ -863,21 +1054,23 @@ class frequency_analysis():  # Amplification and Stabilization analysis
             count = count + 1
             arr, originX, originY, pixelWidth, pixelHeight = ToRaster().raster2array(fpath)
             arr = Tools().mask_999999_arr(arr, warning=False)
-            arr_m = ma.masked_where(np.isnan(arr), arr)
-            lon_list = np.arange(originX, originX + pixelWidth * arr.shape[1], pixelWidth)
-            lat_list = np.arange(originY, originY + pixelHeight * arr.shape[0], pixelHeight)
-            lon_list, lat_list = np.meshgrid(lon_list, lat_list)
-            m = Basemap(projection='cyl', llcrnrlat=30, urcrnrlat=90, llcrnrlon=-180, urcrnrlon=180, resolution='i',
-                        ax=ax)
-            ret = m.pcolormesh(lon_list, lat_list, arr_m, cmap='RdBu', zorder=-1, vmin=-30, vmax=30)
-            coastlines = m.drawcoastlines(zorder=100, linewidth=0.2)
+            arr = arr[:120]
+            # arr_m = ma.masked_where(np.isnan(arr), arr)
+            # lon_list = np.arange(originX, originX + pixelWidth * arr.shape[1], pixelWidth)
+            # lat_list = np.arange(originY, originY + pixelHeight * arr.shape[0], pixelHeight)
+            # lon_list, lat_list = np.meshgrid(lon_list, lat_list)
+            # m = Basemap(projection='cyl', llcrnrlat=30, urcrnrlat=90, llcrnrlon=-180, urcrnrlon=180, resolution='i',
+            #             ax=ax)
+            # ret = m.pcolormesh(lon_list, lat_list, arr_m, cmap='PiYG', zorder=-1, vmin=-50, vmax=50)
+            # coastlines = m.drawcoastlines(zorder=100, linewidth=0.2)
             # plt.title(f.replace('_trend.tif', '').replace('_S2', '').replace('_lai', '').replace('_LAI', ''))
+            plt.imshow(arr, cmap='PiYG', interpolation='nearest', vmin=-50, vmax=50)
             plt.title(new_name_dict[f],loc='left')
         # plt.tight_layout()
 
         cax = plt.axes([0.5-0.3/2, 0.1, 0.3, 0.02])
-        plt.colorbar(ret, ax=ax, cax=cax, orientation='horizontal', extend='both')
-        outf = join(outdir, 'spatial_frequency_delta.png')
+        plt.colorbar(ax=ax, cax=cax, orientation='horizontal', extend='both')
+        outf = join(outdir, 'spatial_frequency_delta.pdf')
         # plt.show()
 
         plt.savefig(outf,dpi=600)
@@ -903,66 +1096,85 @@ class frequency_analysis():  # Amplification and Stabilization analysis
             arr_m = arr_m.flatten()
             arr_m = arr_m[~np.isnan(arr_m)]
             plt.figure()
-            x,y = Plot().plot_hist_smooth(arr_m,bins=40,alpha=1,interpolate_window=11,range=[-80,80])
-            plt.plot(x,y,label=f)
+            x,y = Plot().plot_hist_smooth(arr_m,bins=40,alpha=0,interpolate_window=11,range=[-80,80])
+            Plot().plot_hist_smooth_colorful(arr_m,bins=40,color_range=[-50,50],hist_range=[-80,80],palette='PiYG')
+
+            plt.plot(x,y,color='k')
             plt.title(f.replace('_trend.tif', '').replace('_S2', '').replace('_lai', '').replace('_LAI', ''))
             # plt.legend()
-        plt.show()
+            # plt.show()
+            outf = join(outdir, f+'.pdf')
+
+            # plt.savefig(outf,dpi=600)
+            plt.show()
+        # T.open_path_and_file(outdir)
 
 
 
 
-    def pdf_stabilization(self):  ## reviewer's comment get pdf of stability
-        dic_lc_file = data_root + 'Base_data/LC_reclass2.npy'
-        dic_lc = T.load_npy(dic_lc_file)
+    def stacked_bar_stabilization(self):  ## reviewer's comment get pdf of stability
+        dff=rf'D:\Greening\Result\Data_frame\distibution_across_pft\\distibution.df'
+        df=T.load_df(dff)
+        df = df.dropna()
+        df = df[df['row'] < 120]
+
+        df = df[df['max_trend'] < 10]
+
+
+        df = df[df['landcover_GLC'] != 'Crop']
+        bin_list=[0,10,20,30,40,50,60,70,80]
+        ## get landcover list
+        landcover_list = df['landcover_GLC'].unique()
+        print(landcover_list)
+        # exit()
+        scenario_list = ['weak_stabilization_MODIS','strong_stabilization_MODIS','amplification_MODIS']
+        for scenario in scenario_list:
+            dic_bin = {}
+
+            for bin in bin_list:
+                if bin==0:
+                    upper = 10
+                    lower = 0
+                else:
+                    upper = bin
+                    lower = bin - 10
+                dic_landcover = {}
+                for landcover in ['DF', 'EF', 'Shrubs', 'Grass']:
+                    df_landcover = df[(df['landcover_GLC'] == landcover)]
+
+                    vals=df_landcover[scenario].to_list()
+                    vals=np.array(vals) * 100
+                    ## extract percent
+
+                    vals = vals[(vals >= lower) & (vals < upper)]
+                    number = len(vals)
+
+                    percent = round(number / len(df) * 100, 2)
+                    dic_landcover[landcover] = percent
+
+
+                dic_bin[bin] = dic_landcover
+            df_new=pd.DataFrame(dic_bin)
+            df_new=df_new.T
+            ##plt stacked bar
+            df_new.plot(kind='bar',stacked=True,color=['b','g','r','y'])
+            plt.legend(loc='upper right')
+            plt.ylabel('Percentage (%)')
+
+            plt.xticks(np.arange(0, len(bin_list), 1), bin_list)
+            plt.title(scenario)
+            plt.show()
 
 
 
-        tiff_mask_landcover_change = data_root + 'Base_data/lc_trend/max_trend.tif'
-
-        array_mask_landcover_change, originX, originY, pixelWidth, pixelHeight =ToRaster().raster2array(
-
-            tiff_mask_landcover_change)
-        array_mask_landcover_change[array_mask_landcover_change * 20 > 10] = np.nan
-        array_mask_landcover_change = DIC_and_TIF().spatial_arr_to_dic(array_mask_landcover_change)
-
-        outdir = join(self.this_class_tif,'distribution')
-        T.mk_dir(outdir,force=True)
-        product1 = 'MCD'
-
-        arr_list_1,cols = self.spatial_frequency_i(product1)
-        dic_data=DIC_and_TIF().spatial_arr_to_dic(arr_list_1[2])
-        landcover_list=['DF','EF','Grass','Shrubs',]
-        flag = 1
-        centimeter = 2.54
 
 
-        spatial_dic={}
-        for pix in dic_data:
-            if pix not in dic_lc:
-                continue
-            landcover_type = dic_lc[pix]
-            stabilization=dic_data[pix]
 
-            spatial_dic[pix]= {
-                'landcover_type':landcover_type,
-                'stabilization':stabilization
-            }
-        ## plot stacked bar
-        stabilization_dic={}
-        range_list = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
-        for range in range_list:
-            stabilization_dic[range]=[]
-        for lc in landcover_list:
-            stabilization_list=[]
-            for pix in spatial_dic:
-                if spatial_dic[pix]['landcover_type']!=lc:
-                    continue
-                stabilization = spatial_dic[pix]['stabilization']
 
-                stabilization_list.append(stabilization)
 
-            stabilization_dic[lc]=stabilization_list
+
+
+
 
 
 
