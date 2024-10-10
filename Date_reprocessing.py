@@ -1784,8 +1784,10 @@ class statistic_analysis():
         pass
     def run(self):
         # self.trend_analysis()
-        self.trend_analysis_plot()
+        # self.trend_analysis_plot()
         # self.detrend_zscore()
+        self.trend_analysis_stat()
+
         # self.detrend_zscore_seasonality()
         # self.detrend_zscore_monthly()
         # self.zscore()
@@ -1856,6 +1858,57 @@ class statistic_analysis():
                 # plt.show()
 
     pass
+    def trend_analysis_stat(self):
+
+        fdir=result_root+rf'trend_analysis\\zscore\\late\\'
+
+        for f in os.listdir(fdir):
+            if not f.endswith('.npy'):
+                continue
+            if not 'MCD' in f:
+                continue
+            if 'p_value' in f:
+                continue
+            f_trend = f.split('.')[0] + '.npy'
+            print(f_trend)
+            f_pvalue = f.split('.')[0].replace('trend', 'p_value') + '.npy'
+            # print(f_pvalue)
+            # exit()
+
+            dic_trend=DIC_and_TIF().spatial_arr_to_dic(np.load(fdir+f_trend))
+            dic_pvalue=DIC_and_TIF().spatial_arr_to_dic(np.load(fdir+f_pvalue))
+
+            count=0
+            pix_number = 0
+            for pix in dic_trend:
+                if pix not in dic_pvalue:
+                    continue
+                if dic_pvalue[pix]<-99:
+                    continue
+                if dic_trend[pix]<-99:
+                    continue
+
+
+                if np.isnan(dic_trend[pix]):
+                    continue
+                if np.isnan(dic_pvalue[pix]):
+                    continue
+                pix_number+=1
+                trend=dic_trend[pix]
+
+                pvalue=dic_pvalue[pix]
+                if pvalue<0.05 and trend>0:
+                    count+=1
+                # if trend>0:
+                #     count+=1
+
+
+                ## calculate percentage
+            percentage = count / pix_number
+            print(percentage)
+
+
+        pass
 
     def trend_analysis_plot(self):
         outdir = result_root + rf'trend_analysis\\trend_analysis_plot\\'
@@ -6538,7 +6591,7 @@ def main():
     # Check_plot().run()
     # Phenology().run()
     # process_LAI().run()
-    # statistic_analysis().run()
+    statistic_analysis().run()
     # frequency_analysis().run()
     # frequency_analysis_for_two_period().run()
 

@@ -350,14 +350,18 @@ class frequency_analysis():  # Amplification and Stabilization analysis
 
         # 4. create spatial map of frequency of stabilization and amplification
         # self.spatial_frequency()
+        # self.spatial_frequency_pie_plot()
+        # self.spatial_frequency_pie_plot1()
+        # self.spatial_frequency_strong_weak_stab_statistic()
         # self.frequency_heatmap_differences()
         # self.spatial_frequency_hist_statistic()
-        self.plot_spatial_frequency_bar_statistic()
         # self.spatial_frequency_bar_statistic()
+        # self.plot_spatial_frequency_bar_statistic()
+
         # self.spatial_frequency_delta()
         # self.plot_spatial_frequency_delta()
         # self.plot_spatial_frequency_delta_hist()
-        # self.stacked_bar_stabilization()
+        self.stacked_bar_stabilization_pft()
 
 
         pass
@@ -824,6 +828,362 @@ class frequency_analysis():  # Amplification and Stabilization analysis
         # T.open_path_and_file(outdir)
         # exit()
 
+    def spatial_frequency_pie_plot(self):
+
+        outdir = join(self.this_class_png,'spatial_frequency_pie_plot')
+        T.mkdir(outdir)
+        fdir_early = join(data_root,'detrended_zscore_LAI/early_peak')
+        fdir_late = join(data_root,'detrended_zscore_LAI/late')
+        AI_tif = r"D:\Greening\Data\Base_data\Aridity_Index\aridity_index.tif"
+        AI_arr = DIC_and_TIF().spatial_tif_to_arr(AI_tif)
+        AI_dict = DIC_and_TIF().spatial_arr_to_dic(AI_arr)
+
+        for f in T.listdir(fdir_early):
+            # if not 'Trendy_ensemble' in f:
+            #     continue
+            if not 'MCD' in f:
+                continue
+            outdir_i = join(outdir,f.replace('.npy',''))
+            T.mk_dir(outdir_i,force=True)
+            fpath_early = join(fdir_early,f)
+            fpath_late = join(fdir_late,f)
+            early_dict = T.load_npy(fpath_early)
+            late_dict = T.load_npy(fpath_late)
+            result_dict = {}
+            for pix in tqdm(early_dict,desc=f):
+                early_vals = early_dict[pix]
+                if not pix in late_dict:
+                    continue
+                late_vals = late_dict[pix]
+                father = 0
+                son_amplification = 0
+                son_weak_stabilization = 0
+                son_strong_stabilization = 0
+                for i in range(len(early_vals)):
+                    early_val = early_vals[i]
+                    late_val = late_vals[i]
+                    if early_val < 0:
+                        continue
+                    father += 1
+                    if late_val > early_val:
+                        son_amplification += 1
+                    elif late_val < early_val and late_val > 0:
+                        son_weak_stabilization += 1
+                    else:
+                        son_strong_stabilization += 1
+                if father == 0:
+                    continue
+                ratio_amplification = son_amplification/father
+                ratio_weak_stabilization = son_weak_stabilization/father
+                ratio_strong_stabilization = son_strong_stabilization/father
+                result_dict[pix] = {
+                    'ratio_amplification':ratio_amplification,
+                    'ratio_weak_stabilization':ratio_weak_stabilization,
+                    'ratio_strong_stabilization':ratio_strong_stabilization,
+                }
+            if len(result_dict) == 0:
+                continue
+            df = T.dic_to_df(result_dict,'pix')
+            df = T.add_spatial_dic_to_df(df,AI_dict,'aridity_index')
+            mode_list = ['ratio_amplification','ratio_weak_stabilization','ratio_strong_stabilization']
+            max_mode_list = []
+            region_list = []
+            for i,row in df.iterrows():
+                pix = row['pix']
+                aridity_index = row['aridity_index']
+                if np.isnan(aridity_index):
+                    max_mode_list.append(np.nan)
+                    region_list.append(np.nan)
+                    continue
+                if aridity_index < 0.65:
+                    region = 'Arid'
+                elif aridity_index >= 0.65:
+                    region = 'Humid'
+                else:
+                    raise
+                region_list.append(region)
+                vals = [row[mode] for mode in mode_list]
+                max_val = max(vals)
+                if max_val <= .5:
+                    max_mode_list.append('other')
+                    continue
+                max_mode = mode_list[np.argmax(vals)]
+                max_mode_list.append(max_mode)
+            df['region'] = region_list
+            df['max_mode'] = max_mode_list
+            df = df.dropna(subset=['max_mode'])
+            df = df[df['max_mode'] != 'other']
+
+            T.print_head_n(df)
+
+            max_mode_list_unique = T.get_df_unique_val_list(df,'max_mode')
+            region_list_unique = T.get_df_unique_val_list(df,'region')
+            ratio_list = []
+            for mode in max_mode_list_unique:
+                df_i = df[df['max_mode']==mode]
+                ratio_i = len(df_i)/len(df)
+                ratio_list.append(ratio_i)
+            plt.figure()
+            plt.pie(ratio_list,labels=max_mode_list_unique,autopct='%1.1f%%')
+            plt.title(f)
+            ratio_list_2 = []
+            max_mode_list_2 = []
+            for mode in max_mode_list_unique:
+                df_i = df[df['max_mode']==mode]
+                for region in region_list_unique:
+                    df_i_region = df_i[df_i['region']==region]
+                    ratio_i = len(df_i_region)/len(df)
+                    ratio_list_2.append(ratio_i)
+                    max_mode_list_2.append(f'{region}-{mode}')
+            outf1 = join(outdir_i,f'{f}_pie1.pdf')
+            # plt.savefig(outf1)
+            # plt.close()
+            plt.figure()
+            plt.pie(ratio_list_2,labels=max_mode_list_2,autopct='%1.1f%%')
+            plt.title(f)
+            outf2 = join(outdir_i,f'{f}_pie2.pdf')
+            # plt.savefig(outf2)
+            # plt.close()
+            plt.show()
+        T.open_path_and_file(outdir)
+
+
+    def spatial_frequency_pie_plot1(self):
+        import Date_reprocessing
+        outdir = join(self.this_class_png,'spatial_frequency_pie_plot3')
+        T.mkdir(outdir)
+        fdir_early = join(data_root,'detrended_zscore_LAI/early_peak')
+        fdir_late = join(data_root,'detrended_zscore_LAI/late')
+        AI_tif = r"D:\Greening\Data\Base_data\Aridity_Index\aridity_index.tif"
+        AI_arr = DIC_and_TIF().spatial_tif_to_arr(AI_tif)
+        AI_dict = DIC_and_TIF().spatial_arr_to_dic(AI_arr)
+
+        for f in T.listdir(fdir_early):
+            if not 'Trendy_ensemble' in f:
+                continue
+            # if not 'MCD' in f:
+            #     continue
+            outdir_i = join(outdir,f.replace('.npy',''))
+            T.mk_dir(outdir_i,force=True)
+            fpath_early = join(fdir_early,f)
+            fpath_late = join(fdir_late,f)
+            early_dict = T.load_npy(fpath_early)
+            late_dict = T.load_npy(fpath_late)
+            result_dict = {}
+            for pix in tqdm(early_dict,desc=f):
+                early_vals = early_dict[pix]
+                if not pix in late_dict:
+                    continue
+                late_vals = late_dict[pix]
+                father = 0
+                son_amplification = 0
+                son_weak_stabilization = 0
+                son_strong_stabilization = 0
+                for i in range(len(early_vals)):
+                    early_val = early_vals[i]
+                    late_val = late_vals[i]
+                    if early_val < 0:
+                        continue
+                    father += 1
+                    if late_val > early_val:
+                        son_amplification += 1
+                    elif late_val < early_val and late_val > 0:
+                        son_weak_stabilization += 1
+                    else:
+                        son_strong_stabilization += 1
+                if father == 0:
+                    continue
+                ratio_amplification = son_amplification/father
+                ratio_weak_stabilization = son_weak_stabilization/father
+                ratio_strong_stabilization = son_strong_stabilization/father
+                result_dict[pix] = {
+                    'ratio_amplification':ratio_amplification,
+                    'ratio_weak_stabilization':ratio_weak_stabilization,
+                    'ratio_strong_stabilization':ratio_strong_stabilization,
+                }
+            if len(result_dict) == 0:
+                continue
+            df = T.dic_to_df(result_dict,'pix')
+            df = T.add_spatial_dic_to_df(df,AI_dict,'aridity_index')
+            mode_list = ['ratio_amplification','ratio_weak_stabilization','ratio_strong_stabilization']
+            max_mode_list = []
+            region_list = []
+            for i,row in df.iterrows():
+                pix = row['pix']
+                aridity_index = row['aridity_index']
+                if np.isnan(aridity_index):
+                    max_mode_list.append(np.nan)
+                    region_list.append(np.nan)
+                    continue
+                if aridity_index < 0.65:
+                    region = 'Arid'
+                elif aridity_index >= 0.65:
+                    region = 'Humid'
+                else:
+                    raise
+                region_list.append(region)
+                vals = [row[mode] for mode in mode_list]
+                max_val = max(vals)
+                if max_val <= .5:
+                    max_mode_list.append('other')
+                    continue
+                max_mode = mode_list[np.argmax(vals)]
+                max_mode_list.append(max_mode)
+            df['region'] = region_list
+            df['max_mode'] = max_mode_list
+            df = df[df['max_mode'] != 'other']
+            Datafram_add_row_class = Date_reprocessing.build_dataframe()
+            df = Datafram_add_row_class.add_row(df)
+            df = Datafram_add_row_class.add_max_trend_to_df(df)
+            df = Datafram_add_row_class.add_NDVI_mask(df)
+            df = Datafram_add_row_class.add_GLC_landcover_data_to_df(df)
+            df = df.dropna(subset=['max_mode'])
+            df = self.clean_df(df)
+            T.print_head_n(df)
+            # exit()
+
+            max_mode_list_unique = T.get_df_unique_val_list(df,'max_mode')
+            region_list_unique = T.get_df_unique_val_list(df,'region')
+            ratio_list = []
+            for region in region_list_unique:
+                df_i = df[df['region']==region]
+                ratio_i = len(df_i)/len(df)
+                ratio_list.append(ratio_i)
+            plt.figure()
+            plt.pie(ratio_list,labels=region_list_unique,autopct='%1.1f%%')
+            plt.title(f)
+            ratio_list_2 = []
+            max_mode_list_2 = []
+            for region in region_list_unique:
+                df_i = df[df['region']==region]
+                for mode in max_mode_list_unique:
+                    df_i_region = df_i[df_i['max_mode']==mode]
+                    ratio_i = len(df_i_region)/len(df)
+                    ratio_list_2.append(ratio_i)
+                    max_mode_list_2.append(f'{region}-{mode}')
+            outf1 = join(outdir_i,f'{f}_pie1.pdf')
+            plt.savefig(outf1)
+            plt.close()
+            # plt.show()
+            plt.figure()
+            plt.pie(ratio_list_2,labels=max_mode_list_2,autopct='%1.1f%%')
+            plt.title(f)
+            outf2 = join(outdir_i,f'{f}_pie2.pdf')
+            plt.savefig(outf2)
+            plt.close()
+            # plt.show()
+        T.open_path_and_file(outdir)
+
+    def spatial_frequency_strong_weak_stab_statistic(self):
+        import Date_reprocessing
+        # outdir = join(self.this_class_png,'spatial_frequency_pie_plot3')
+        # T.mkdir(outdir)
+        fdir_early = join(data_root,'detrended_zscore_LAI/early_peak')
+        fdir_late = join(data_root,'detrended_zscore_LAI/late')
+        AI_tif = r"D:\Greening\Data\Base_data\Aridity_Index\aridity_index.tif"
+        AI_arr = DIC_and_TIF().spatial_tif_to_arr(AI_tif)
+        AI_dict = DIC_and_TIF().spatial_arr_to_dic(AI_arr)
+
+        for f in T.listdir(fdir_early):
+            # if not 'Trendy_ensemble' in f:
+            #     continue
+            if not 'MCD' in f:
+                continue
+            # outdir_i = join(outdir,f.replace('.npy',''))
+            # T.mk_dir(outdir_i,force=True)
+            fpath_early = join(fdir_early,f)
+            fpath_late = join(fdir_late,f)
+            early_dict = T.load_npy(fpath_early)
+            late_dict = T.load_npy(fpath_late)
+            result_dict = {}
+            for pix in tqdm(early_dict,desc=f):
+                early_vals = early_dict[pix]
+                if not pix in late_dict:
+                    continue
+                late_vals = late_dict[pix]
+                father = 0
+                son_amplification = 0
+                son_weak_stabilization = 0
+                son_strong_stabilization = 0
+                for i in range(len(early_vals)):
+                    early_val = early_vals[i]
+                    late_val = late_vals[i]
+                    if early_val < 0:
+                        continue
+                    father += 1
+                    if late_val > early_val:
+                        son_amplification += 1
+                    elif late_val < early_val and late_val > 0:
+                        son_weak_stabilization += 1
+                    else:
+                        son_strong_stabilization += 1
+                if father == 0:
+                    continue
+                ratio_amplification = son_amplification/father
+                ratio_weak_stabilization = son_weak_stabilization/father
+                ratio_strong_stabilization = son_strong_stabilization/father
+                result_dict[pix] = {
+                    'ratio_amplification':ratio_amplification,
+                    'ratio_weak_stabilization':ratio_weak_stabilization,
+                    'ratio_strong_stabilization':ratio_strong_stabilization,
+                }
+            if len(result_dict) == 0:
+                continue
+            df = T.dic_to_df(result_dict,'pix')
+            df = T.add_spatial_dic_to_df(df,AI_dict,'aridity_index')
+            mode_list = ['ratio_amplification','ratio_weak_stabilization','ratio_strong_stabilization']
+            max_mode_list = []
+            region_list = []
+            for i,row in df.iterrows():
+                pix = row['pix']
+                aridity_index = row['aridity_index']
+                if np.isnan(aridity_index):
+                    max_mode_list.append(np.nan)
+                    region_list.append(np.nan)
+                    continue
+                if aridity_index < 0.65:
+                    region = 'Arid'
+                elif aridity_index >= 0.65:
+                    region = 'Humid'
+                else:
+                    raise
+                region_list.append(region)
+                vals = [row[mode] for mode in mode_list]
+                max_val = max(vals)
+                if max_val <= .5:
+                    max_mode_list.append('other')
+                    continue
+                max_mode = mode_list[np.argmax(vals)]
+                max_mode_list.append(max_mode)
+            df['region'] = region_list
+            df['max_mode'] = max_mode_list
+            df['sum_stabilization'] = df['ratio_weak_stabilization']+df['ratio_strong_stabilization']
+            # df = df[df['max_mode'] != 'other']
+            Datafram_add_row_class = Date_reprocessing.build_dataframe()
+            df = Datafram_add_row_class.add_row(df)
+            df = Datafram_add_row_class.add_max_trend_to_df(df)
+            df = Datafram_add_row_class.add_NDVI_mask(df)
+            df = Datafram_add_row_class.add_GLC_landcover_data_to_df(df)
+            # df = df.dropna(subset=['max_mode'])
+            df = self.clean_df(df)
+            T.print_head_n(df)
+            # exit()
+
+            region_list_unique = T.get_df_unique_val_list(df,'region')
+            ratio_list_2 = []
+            max_mode_list_2 = []
+            df_sum_stab_all = df[df['ratio_amplification'] >= 0.5]
+            ratio = len(df_sum_stab_all)/len(df)
+            print(f'All: {ratio}')
+            for region in region_list_unique:
+                df_region = df[df['region']==region]
+                # df_sum_stab = df_region[df_region['sum_stabilization']>0.5]
+                df_sum_stab = df_region[df_region['ratio_amplification']>=0.5]
+                ratio_i = len(df_sum_stab)/len(df_region)
+                print(f'{region}: {ratio_i}')
+                ratio_list_2.append(ratio_i)
+                max_mode_list_2.append(f'{region}')
+
     def spatial_frequency_hist_statistic(self):
         product1 = 'MCD'
         # product1 = 'Trendy_ensemble'
@@ -1112,7 +1472,7 @@ class frequency_analysis():  # Amplification and Stabilization analysis
 
 
 
-    def stacked_bar_stabilization(self):  ## reviewer's comment get pdf of stability
+    def stacked_bar_stabilization_pft(self):  ## reviewer's comment get pdf of stability
         dff=rf'D:\Greening\Result\Data_frame\distibution_across_pft\\distibution.df'
         df=T.load_df(dff)
         df = df.dropna()
@@ -1122,48 +1482,69 @@ class frequency_analysis():  # Amplification and Stabilization analysis
 
 
         df = df[df['landcover_GLC'] != 'Crop']
-        bin_list=[0,10,20,30,40,50,60,70,80]
+        bin_list=[0,20,40,60,80]
         ## get landcover list
         landcover_list = df['landcover_GLC'].unique()
         print(landcover_list)
         # exit()
-        scenario_list = ['weak_stabilization_MODIS','strong_stabilization_MODIS','amplification_MODIS']
+        scenario_list = ['weak_stabilization_TRENDY_ensemble','strong_stabilization_TRENDY_ensemble',]
+
+        fig = plt.figure(figsize=(10, 10))
+
         for scenario in scenario_list:
+
+            ax = fig.add_subplot(2, 2, scenario_list.index(scenario) + 1)
+
+
+
             dic_bin = {}
 
             for bin in bin_list:
                 if bin==0:
-                    upper = 10
+                    upper = 20
                     lower = 0
                 else:
                     upper = bin
-                    lower = bin - 10
+                    lower = bin - 20
                 dic_landcover = {}
+
+
+                vals=df[scenario].to_list()
+                vals=np.array(vals) * 100
+                ## extract percent
+                vals = vals[(vals >= lower) & (vals < upper)]
+                number = len(vals)
                 for landcover in ['DF', 'EF', 'Shrubs', 'Grass']:
-                    df_landcover = df[(df['landcover_GLC'] == landcover)]
 
-                    vals=df_landcover[scenario].to_list()
-                    vals=np.array(vals) * 100
-                    ## extract percent
+                    df_landcover = df[df['landcover_GLC'] == landcover]
+                    val_landcover = df_landcover[scenario].to_list()
+                    val_landcover = np.array(val_landcover) * 100
+                    vals_landcover = val_landcover[(val_landcover >= lower) & (val_landcover < upper)]
 
-                    vals = vals[(vals >= lower) & (vals < upper)]
-                    number = len(vals)
+                    percent = (len(vals_landcover) / number) * 100
 
-                    percent = round(number / len(df) * 100, 2)
+
+
+
                     dic_landcover[landcover] = percent
 
 
                 dic_bin[bin] = dic_landcover
+
             df_new=pd.DataFrame(dic_bin)
+
             df_new=df_new.T
+            ax=df_new.plot(kind='bar',stacked=True,ax=ax,color=['b','g','r','y'])
             ##plt stacked bar
-            df_new.plot(kind='bar',stacked=True,color=['b','g','r','y'])
+            # df_new.plot(kind='bar',stacked=True,color=['b','g','r','y'])
+
             plt.legend(loc='upper right')
             plt.ylabel('Percentage (%)')
 
+
             plt.xticks(np.arange(0, len(bin_list), 1), bin_list)
             plt.title(scenario)
-            plt.show()
+        plt.show()
 
 
 
