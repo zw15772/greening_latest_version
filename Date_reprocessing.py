@@ -83,7 +83,8 @@ class nctotif():
     def run (self):
         # self.nctotif_CRU()
         # self.nc_to_tif_GLEAM()
-        self.nc_to_tif_Trendy()
+        # self.nc_to_tif_Trendy()
+        self.nc_to_tif_CO2()
 
 
         # self.per_pixel_annual()
@@ -183,6 +184,33 @@ class nctotif():
                 print(e)
                 continue
 
+    def nc_to_tif_CO2(self):
+        fdir = rf'E:\Project3\Data\CO2\\'
+
+        for f in os.listdir(fdir):
+            if not 'CO2_SSP245_2015_2150.nc' in f:
+                continue
+
+            if f.startswith('.'):
+                continue
+
+
+
+            outdir = rf'E:\Project3\Data\CO2_TIFF//SSP245//'
+            Tools().mk_dir(outdir, force=True)
+            yearlist = list(range(1982, 2021))
+
+            # # check nc variables
+            # print(nc.variables.keys())
+            # exit()
+
+            # nc_to_tif_template(fdir+f,var_name='lai',outdir=outdir,yearlist=yearlist)
+            try:
+                self.nc_to_tif_template(fdir + f, var_name='CO2', outdir=outdir, yearlist=yearlist)
+            except Exception as e:
+                print(e)
+                continue
+
 
     def nc_to_tif_template(self, fname, var_name, outdir, yearlist):
         try:
@@ -204,7 +232,12 @@ class nctotif():
                     lat = ncin.variables['lat_FULL'][:]
                     lon = ncin.variables['lon_FULL'][:]
                 except:
-                    raise UserWarning('lat or lon not found')
+                    try:
+                        lat = ncin.variables['Latitude'][:]
+                        lon = ncin.variables['Latitude'][:]
+                    except:
+
+                        raise UserWarning('lat or lon not found')
         shape = np.shape(lat)
         try:
             time = ncin.variables['time_counter'][:]
@@ -6585,13 +6618,13 @@ class ResponseFunction:  # figure 5 in paper
 
 
 def main():
-    # nctotif().run()
+    nctotif().run()
     # Resample().run()
     # TIFtoDIC().run()
     # Check_plot().run()
     # Phenology().run()
     # process_LAI().run()
-    statistic_analysis().run()
+    # statistic_analysis().run()
     # frequency_analysis().run()
     # frequency_analysis_for_two_period().run()
 

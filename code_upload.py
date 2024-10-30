@@ -352,16 +352,19 @@ class frequency_analysis():  # Amplification and Stabilization analysis
         # self.spatial_frequency()
         # self.spatial_frequency_pie_plot()
         # self.spatial_frequency_pie_plot1()
-        # self.spatial_frequency_strong_weak_stab_statistic()
+        self.spatial_frequency_strong_weak_stab_statistic()
+        # self.spatial_frequency_strong_weak_stab_statistic_pft()
         # self.frequency_heatmap_differences()
         # self.spatial_frequency_hist_statistic()
+        # self.spatial_frequency_delta_statistic() ### calculate percentage areas of model underestimation, overestimation and no change
         # self.spatial_frequency_bar_statistic()
         # self.plot_spatial_frequency_bar_statistic()
+
 
         # self.spatial_frequency_delta()
         # self.plot_spatial_frequency_delta()
         # self.plot_spatial_frequency_delta_hist()
-        self.stacked_bar_stabilization_pft()
+        # self.stacked_bar_stabilization_pft()
 
 
         pass
@@ -959,10 +962,10 @@ class frequency_analysis():  # Amplification and Stabilization analysis
         AI_dict = DIC_and_TIF().spatial_arr_to_dic(AI_arr)
 
         for f in T.listdir(fdir_early):
-            if not 'Trendy_ensemble' in f:
-                continue
-            # if not 'MCD' in f:
+            # if not 'Trendy_ensemble' in f:
             #     continue
+            if not 'MCD' in f:
+                continue
             outdir_i = join(outdir,f.replace('.npy',''))
             T.mk_dir(outdir_i,force=True)
             fpath_early = join(fdir_early,f)
@@ -1031,7 +1034,7 @@ class frequency_analysis():  # Amplification and Stabilization analysis
                 max_mode_list.append(max_mode)
             df['region'] = region_list
             df['max_mode'] = max_mode_list
-            df = df[df['max_mode'] != 'other']
+            # df = df[df['max_mode'] != 'other']
             Datafram_add_row_class = Date_reprocessing.build_dataframe()
             df = Datafram_add_row_class.add_row(df)
             df = Datafram_add_row_class.add_max_trend_to_df(df)
@@ -1062,16 +1065,16 @@ class frequency_analysis():  # Amplification and Stabilization analysis
                     ratio_list_2.append(ratio_i)
                     max_mode_list_2.append(f'{region}-{mode}')
             outf1 = join(outdir_i,f'{f}_pie1.pdf')
-            plt.savefig(outf1)
-            plt.close()
+            # plt.savefig(outf1)
+            # plt.close()
             # plt.show()
             plt.figure()
             plt.pie(ratio_list_2,labels=max_mode_list_2,autopct='%1.1f%%')
             plt.title(f)
             outf2 = join(outdir_i,f'{f}_pie2.pdf')
-            plt.savefig(outf2)
-            plt.close()
-            # plt.show()
+            # plt.savefig(outf2)
+            # plt.close()
+            plt.show()
         T.open_path_and_file(outdir)
 
     def spatial_frequency_strong_weak_stab_statistic(self):
@@ -1165,16 +1168,19 @@ class frequency_analysis():  # Amplification and Stabilization analysis
             df = Datafram_add_row_class.add_NDVI_mask(df)
             df = Datafram_add_row_class.add_GLC_landcover_data_to_df(df)
             # df = df.dropna(subset=['max_mode'])
-            df = self.clean_df(df)
+            # df = self.clean_df(df)
             T.print_head_n(df)
             # exit()
 
             region_list_unique = T.get_df_unique_val_list(df,'region')
             ratio_list_2 = []
             max_mode_list_2 = []
-            df_sum_stab_all = df[df['ratio_amplification'] >= 0.5]
+            # df_sum_stab_all = df[df['ratio_amplification'] >= 0.5]
+            # df_sum_stab_all = df[df['ratio_strong_stabilization'] > 0.5]
+            df = df[df['ratio_strong_stabilization'] == 0.5]
+            T.print_head_n(df)
             ratio = len(df_sum_stab_all)/len(df)
-            print(f'All: {ratio}')
+            print(f'strong stabilization All: {ratio}');exit()
             for region in region_list_unique:
                 df_region = df[df['region']==region]
                 # df_sum_stab = df_region[df_region['sum_stabilization']>0.5]
@@ -1183,6 +1189,131 @@ class frequency_analysis():  # Amplification and Stabilization analysis
                 print(f'{region}: {ratio_i}')
                 ratio_list_2.append(ratio_i)
                 max_mode_list_2.append(f'{region}')
+
+    def spatial_frequency_strong_weak_stab_statistic_pft(self):
+        import Date_reprocessing
+        # outdir = join(self.this_class_png,'spatial_frequency_pie_plot3')
+        # T.mkdir(outdir)
+        fdir_early = join(data_root,'detrended_zscore_LAI/early_peak')
+        fdir_late = join(data_root,'detrended_zscore_LAI/late')
+        AI_tif = r"D:\Greening\Data\Base_data\Aridity_Index\aridity_index.tif"
+
+        AI_arr = DIC_and_TIF().spatial_tif_to_arr(AI_tif)
+        AI_dict = DIC_and_TIF().spatial_arr_to_dic(AI_arr)
+
+
+        for f in T.listdir(fdir_early):
+            # if not 'Trendy_ensemble' in f:
+            #     continue
+            if not 'MCD' in f:
+                continue
+            # outdir_i = join(outdir,f.replace('.npy',''))
+            # T.mk_dir(outdir_i,force=True)
+            fpath_early = join(fdir_early,f)
+            fpath_late = join(fdir_late,f)
+            early_dict = T.load_npy(fpath_early)
+            late_dict = T.load_npy(fpath_late)
+            result_dict = {}
+            for pix in tqdm(early_dict,desc=f):
+                early_vals = early_dict[pix]
+                if not pix in late_dict:
+                    continue
+                late_vals = late_dict[pix]
+                father = 0
+                son_amplification = 0
+                son_weak_stabilization = 0
+                son_strong_stabilization = 0
+                for i in range(len(early_vals)):
+                    early_val = early_vals[i]
+                    late_val = late_vals[i]
+                    if early_val < 0:
+                        continue
+                    father += 1
+                    if late_val > early_val:
+                        son_amplification += 1
+                    elif late_val < early_val and late_val > 0:
+                        son_weak_stabilization += 1
+                    else:
+                        son_strong_stabilization += 1
+                if father == 0:
+                    continue
+                ratio_amplification = son_amplification/father
+                ratio_weak_stabilization = son_weak_stabilization/father
+                ratio_strong_stabilization = son_strong_stabilization/father
+                result_dict[pix] = {
+                    'ratio_amplification':ratio_amplification,
+                    'ratio_weak_stabilization':ratio_weak_stabilization,
+                    'ratio_strong_stabilization':ratio_strong_stabilization,
+                }
+            if len(result_dict) == 0:
+                continue
+            df = T.dic_to_df(result_dict,'pix')
+            df = T.add_spatial_dic_to_df(df,AI_dict,'aridity_index')
+
+            mode_list = ['ratio_amplification','ratio_weak_stabilization','ratio_strong_stabilization']
+            max_mode_list = []
+            region_list = []
+            for i,row in df.iterrows():
+                pix = row['pix']
+                aridity_index = row['aridity_index']
+                if np.isnan(aridity_index):
+                    max_mode_list.append(np.nan)
+                    region_list.append(np.nan)
+                    continue
+                if aridity_index < 0.65:
+                    region = 'Arid'
+                elif aridity_index >= 0.65:
+                    region = 'Humid'
+                else:
+                    raise
+                region_list.append(region)
+                vals = [row[mode] for mode in mode_list]
+                max_val = max(vals)
+                if max_val <= .5:
+                    max_mode_list.append('other')
+                    continue
+                max_mode = mode_list[np.argmax(vals)]
+                max_mode_list.append(max_mode)
+            df['region'] = region_list
+            df['max_mode'] = max_mode_list
+            df['weak_stabilization'] = df['ratio_weak_stabilization']
+            df['strong_stabilization'] = df['ratio_strong_stabilization']
+            df['amplification'] = df['ratio_amplification']
+            df = df.dropna(subset=['max_mode'])
+            # df = df[df['max_mode'] != 'other']
+            Datafram_add_row_class = Date_reprocessing.build_dataframe()
+            df = Datafram_add_row_class.add_row(df)
+            df = Datafram_add_row_class.add_max_trend_to_df(df)
+            df = Datafram_add_row_class.add_NDVI_mask(df)
+            df = Datafram_add_row_class.add_GLC_landcover_data_to_df(df)
+            # df = df.dropna(subset=['max_mode'])
+            df = self.clean_df(df)
+            T.print_head_n(df)
+            # exit()
+
+            landcover_list_unique = T.get_df_unique_val_list(df,'landcover_GLC')
+            ratio_list_2 = []
+            max_mode_list_2 = []
+            # df_sum_stab_all = df[df['ratio_amplification'] >= 0.5]
+            # ratio = len(df_sum_stab_all)/len(df)
+            # print(f'All: {ratio}')
+            scenarios_list = ['ratio_weak_stabilization','ratio_strong_stabilization']
+            fig=plt.figure()
+            for scenario in scenarios_list:
+                ax=fig.add_subplot(2,2,scenarios_list.index(scenario)+1)
+
+                df_all_stab = df[df[scenario] >= 0.5]
+                for landcover in landcover_list_unique:
+                    df_region = df_all_stab[df_all_stab['landcover_GLC']==landcover]
+                    ratio_i = len(df_region)/len(df_all_stab)
+                    ## plot bar for each landcover
+                    ratio_list_2.append(ratio_i)
+                    max_mode_list_2.append(landcover)
+
+                    ax.bar(landcover,ratio_i)
+                    ax.set_title(f'{scenario} {landcover}')
+            plt.show()
+
 
     def spatial_frequency_hist_statistic(self):
         product1 = 'MCD'
@@ -1200,6 +1331,8 @@ class frequency_analysis():  # Amplification and Stabilization analysis
         plt.legend()
         plt.show()
         pass
+
+
 
     def spatial_frequency_bar_statistic(self):
         outdir = join(self.this_class_arr, 'spatial_frequency_bar_statistic')
@@ -1395,6 +1528,27 @@ class frequency_analysis():  # Amplification and Stabilization analysis
         #     plt.colorbar()
         # plt.show()
         T.open_path_and_file(outdir)
+
+    def spatial_frequency_delta_statistic(self):
+        outdir = join(self.this_class_tif, 'spatial_frequency_delta')
+        T.mk_dir(outdir, force=True)
+        product1 = 'MCD'
+        product2 = 'Trendy_ensemble'
+        arr_list_1, cols = self.spatial_frequency_i(product1)
+        arr_list_2, cols = self.spatial_frequency_i(product2)
+        for i in range(len(arr_list_1)):
+            arr1 = arr_list_1[i]
+            arr2 = arr_list_2[i]
+            arr_delta = -arr1 + arr2
+            arr_delta = arr_delta * 100.
+            arr_delta_flatten = arr_delta.flatten()
+            arr_delta_flatten = arr_delta_flatten[~np.isnan(arr_delta_flatten)]
+            filter = arr_delta_flatten > 0
+            percentage = len(arr_delta_flatten[filter])/len(arr_delta_flatten)
+            print(f'{cols[i]}: {percentage}')
+
+
+        pass
     def plot_spatial_frequency_delta(self):
         # T.color_map_choice();exit()
         fdir = join(self.this_class_tif,'spatial_frequency_delta')
@@ -1487,7 +1641,7 @@ class frequency_analysis():  # Amplification and Stabilization analysis
         landcover_list = df['landcover_GLC'].unique()
         print(landcover_list)
         # exit()
-        scenario_list = ['weak_stabilization_TRENDY_ensemble','strong_stabilization_TRENDY_ensemble',]
+        scenario_list = ['weak_stabilization_MODIS','strong_stabilization_MODIS',]
 
         fig = plt.figure(figsize=(10, 10))
 
