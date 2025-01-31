@@ -41,6 +41,7 @@ import shutil
 import requests
 from lytools import *
 import semopy
+import PIL.Image as Image
 
 from osgeo import gdal
 
@@ -2290,6 +2291,8 @@ class statistic_analysis():
 
 class frequency_analysis():
     def __init__(self):
+        import xycmap
+        import PIL.Image as Image
 
         # This class is used to calculate the structural equation model
         self.this_class_arr = result_root + 'Data_frame\\Frequency\\'
@@ -2297,6 +2300,9 @@ class frequency_analysis():
         self.dff = self.this_class_arr + 'frequency_dataframe.df'
 
         Tools().mk_dir(self.this_class_arr, force=True)
+
+        self.this_class_tif = result_root + 'Upload_samples\\Source Data\\tiff\\'
+        T.mkdir(self.this_class_tif, force=1)
 
 
         pass
@@ -2318,9 +2324,10 @@ class frequency_analysis():
         # self.frenquency_heatmap(df_clean)
 
         ### 3. plot heatmap differences between trendy and obs
+        self.spatial_frequency()
 
 
-        self.frenquency_heatmap_differences()
+        # self.frenquency_heatmap_differences()
 
 
         ## 4. plot frequency bar
@@ -2614,7 +2621,8 @@ class frequency_analysis():
         pass
 
     def spatial_frequency(self):
-        import xycmap
+        import xymap
+
         Ter = xymap.Ternary_plot(
             top_color=(10, 94, 0),
             left_color=(0, 30, 210),
@@ -2629,8 +2637,9 @@ class frequency_analysis():
         # plt.imshow(rgb_arr)
         # plt.show()
         outdir = join(self.this_class_tif,'MCD')
-        fdir_early = join(data_root,'detrended_zscore_LAI/early_peak')
-        fdir_late = join(data_root,'detrended_zscore_LAI/late')
+
+        fdir_early = join(result_root,'detrend_zscore/LAI/early_peak')
+        fdir_late = join(result_root,'detrend_zscore/LAI/late')
         for f in T.listdir(fdir_early):
             if not 'MCD' in f:
                 continue
