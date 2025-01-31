@@ -2610,6 +2610,195 @@ class frequency_analysis():
         #     plt.savefig(result_root + rf'Data_frame\\Frequency\\Trendy_{region}.pdf', dpi=300, )
         #     plt.close()
 
+    def creat_data_source(self):
+        pass
+
+    def spatial_frequency(self):
+        import xycmap
+        Ter = xymap.Ternary_plot(
+            top_color=(10, 94, 0),
+            left_color=(0, 30, 210),
+            # left_color=(119,0,188),
+            right_color=(230, 0, 230),
+            # center_color=(85,85,85),
+            center_color=(230, 230, 230),
+            # center_color=(255,255,255),
+        )
+        rgb_arr = Ter.rgb_arr
+
+        # plt.imshow(rgb_arr)
+        # plt.show()
+        outdir = join(self.this_class_tif,'MCD')
+        fdir_early = join(data_root,'detrended_zscore_LAI/early_peak')
+        fdir_late = join(data_root,'detrended_zscore_LAI/late')
+        for f in T.listdir(fdir_early):
+            if not 'MCD' in f:
+                continue
+            outdir_i = join(outdir,f.replace('.npy',''))
+            T.mk_dir(outdir_i,force=True)
+            fpath_early = join(fdir_early,f)
+            fpath_late = join(fdir_late,f)
+            early_dict = T.load_npy(fpath_early)
+            late_dict = T.load_npy(fpath_late)
+            result_dict = {}
+            for pix in tqdm(early_dict,desc=f):
+                early_vals = early_dict[pix]
+                if not pix in late_dict:
+                    continue
+                late_vals = late_dict[pix]
+                father = 0
+                son_amplification = 0
+                son_weak_stabilization = 0
+                son_strong_stabilization = 0
+                for i in range(len(early_vals)):
+                    early_val = early_vals[i]
+                    late_val = late_vals[i]
+                    if early_val < 0:
+                        continue
+                    father += 1
+                    if late_val > early_val:
+                        son_amplification += 1
+                    elif late_val < early_val and late_val > 0:
+                        son_weak_stabilization += 1
+                    else:
+                        son_strong_stabilization += 1
+                if father == 0:
+                    continue
+                ratio_amplification = son_amplification/father
+                ratio_weak_stabilization = son_weak_stabilization/father
+                ratio_strong_stabilization = son_strong_stabilization/father
+                result_dict[pix] = {
+                    'ratio_amplification':ratio_amplification,
+                    'ratio_weak_stabilization':ratio_weak_stabilization,
+                    'ratio_strong_stabilization':ratio_strong_stabilization,
+                }
+            if len(result_dict) == 0:
+                continue
+            df = T.dic_to_df(result_dict,'pix')
+            cols = ['ratio_amplification','ratio_weak_stabilization','ratio_strong_stabilization']
+            # cols = []
+            arr_list = []
+            for col in cols:
+                spatial_dict = T.df_to_spatial_dic(df,col)
+                arr = DIC_and_TIF().pix_dic_to_spatial_arr(spatial_dict)
+                arr = np.array(arr)
+                ##### interpolation
+                # window = 3
+                # new_arr = []
+                # for i in tqdm(range(len(arr))):
+                #     new_arr_i = []
+                #     for j in range(len(arr[0])):
+                #         val = arr[i, j]
+                #         if np.isnan(val):
+                #             val = np.nanmean(arr[i - window:i + window + 1, j - window:j + window + 1])
+                #         new_arr_i.append(val)
+                #     new_arr.append(new_arr_i)
+                # new_arr = np.array(new_arr)
+                # arr_list.append(new_arr)
+
+                arr_list.append(arr)
+
+            color_matrix = []
+
+            s1_matrix = []
+            s2_matrix = []
+            s3_matrix = []
+
+            for i in range(len(arr_list[0])):
+                color_matrix_i = []
+                s1_matrix_i = []
+                s2_matrix_i = []
+                s3_matrix_i = []
+                for j in range(len(arr_list[0][0])):
+                    s1 = arr_list[0][i,j]
+                    s2 = arr_list[1][i,j]
+                    s3 = arr_list[2][i,j]
+
+                    s1_matrix_i.append(s1)
+                    s2_matrix_i.append(s2)
+                    s3_matrix_i.append(s3)
+
+
+                    if np.isnan(s1) or np.isnan(s2) or np.isnan(s3):
+                        color = (0, 0, 0, 0)
+                        color_matrix_i.append(color)
+                        continue
+
+                    # print(s1,s2,s3)
+
+                    color = Ter.get_color(s1,s2,s3)
+                        # r, g, b, w = 0, 0, 0, 0
+                        # color_matrix_i.append(np.array([r, g, b, w]))
+                        # continue
+                    # color = Ter.get_color(s1,s2,s3)
+                    r,g,b = color
+                    r,g,b = int(r*255),int(g*255),int(b*255)
+                    w = 255
+                    if r==255 and g==255 and b==255:
+                        print(s1,s2,s3)
+                    color_matrix_i.append(np.array([r,g,b,w]))
+                    # color_matrix_i.append(np.array([r3, g3, b3,255]))
+                    # color_matrix_i.append(np.array([r1,g1,b1,255]))
+                # exit()
+                s1_matrix.append(s1_matrix_i)
+                s2_matrix.append(s2_matrix_i)
+                s3_matrix.append(s3_matrix_i)
+                color_matrix.append(color_matrix_i)
+            s1_matrix = np.array(s1_matrix,dtype=float)
+            s2_matrix = np.array(s2_matrix,dtype=float)
+            s3_matrix = np.array(s3_matrix,dtype=float)
+            color_matrix = np.array(color_matrix)
+            outf = join(outdir_i,'frequency.tif')
+            outf_s1 = join(outdir_i,'s1.tif')
+            outf_s2 = join(outdir_i,'s2.tif')
+            outf_s3 = join(outdir_i,'s3.tif')
+            DIC_and_TIF().arr_to_tif(s1_matrix,outf_s1)
+            DIC_and_TIF().arr_to_tif(s2_matrix,outf_s2)
+            DIC_and_TIF().arr_to_tif(s3_matrix,outf_s3)
+            # T.open_path_and_file(outdir_i)
+            legend_arr = Ter.rgb_arr
+            plt.imshow(legend_arr)
+            plt.axis('off')
+            plt.axis('equal')
+            legend_f = join(outdir_i,'legend.pdf')
+            # plt.savefig(legend_f)
+            plt.figure()
+
+            img = Image.fromarray(color_matrix.astype('uint8'), 'RGBA')
+            plt.imshow(img)
+            plt.show()
+        #     img.save(outf)
+        #     raster = gdal.Open(outf)
+        #     geotransform = raster.GetGeoTransform()
+        #     originX = DIC_and_TIF().originX
+        #     originY = DIC_and_TIF().originY
+        #     pixelWidth = DIC_and_TIF().pixelWidth
+        #     pixelHeight = DIC_and_TIF().pixelHeight
+        #
+        #     raster.SetGeoTransform((originX, pixelWidth, 0, originY, 0, pixelHeight))
+        #     outRasterSRS = osr.SpatialReference()
+        #
+        #     # outRasterSRS.ImportFromEPSG(4326)
+        #     # outRasterSRS.ImportFromEPSG(projection)
+        #     # raster.SetProjection(outRasterSRS.ExportToWkt())
+        #     raster.SetProjection('EPSG:4326')
+        #     # T.open_path_and_file(outdir_i)
+        #     # exit()
+        # T.open_path_and_file(outdir)
+        # exit()
+
+    def get_raster_projections(self, rasterfn):
+        '''
+        get raster projection
+        Agrs:
+            rasterfn: tiff file path
+        Returns:
+            projection: projection of the raster
+        '''
+        raster = gdal.Open(rasterfn)
+        projection = raster.GetProjection()
+        return projection
+
     def frenquency_heatmap_bar(self):
 
         fdir = join(data_root, 'Frequency/LAI3g')
