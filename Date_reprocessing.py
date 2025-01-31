@@ -1943,80 +1943,6 @@ class statistic_analysis():
 
         pass
 
-    def trend_analysis_plot(self):
-        outdir = result_root + rf'trend_analysis\\trend_analysis_plot\\'
-
-        period_list = [ 'late', 'early_peak', 'early_peak_late']
-        # flist = self.get_trend_analysis_flist()
-        flist_all_product = ['MCD_trend.tif', 'CABLE-POP_S2_lai_trend.tif', 'CLASSIC_S2_lai_trend.tif',
-                             'CLM5_trend.tif', 'IBIS_S2_lai_trend.tif',
-                             'ISAM_S2_LAI_trend.tif', 'ISBA-CTRIP_S2_lai_trend.tif',
-                             'JSBACH_S2_lai_trend.tif', 'LPX-Bern_S2_lai_trend.tif',
-                             'VISIT_S2_lai_trend.tif']
-        period_rename_dict = {
-            'late': 'Late season',
-            'early_peak': 'Early- and peak season',
-            'early_peak_late': 'Growing season',
-        }
-
-        # plt.show()
-        for period in period_list:
-            count = 1
-            plt.figure(figsize=(11, 7))
-            fdir = result_root + rf'trend_analysis\\zscore\\{period}\\'
-            outdir_i = join(outdir, period)
-            T.mk_dir(outdir_i, force=True)
-            for f in tqdm(flist_all_product):
-                if not f.endswith('.tif'):
-                    continue
-                if '_p_value' in f:
-                    continue
-
-                if 'MOD' in f:
-                    continue
-                if 'ensemble' in f:
-                    continue
-                if 'ORCHIDEE' in f:
-                    continue
-                if 'JULES' in f:
-                    continue
-                if 'LPJ' in f:
-                    continue
-                if 'OCN' in f:
-                    continue
-                if 'SDGVM' in f:
-                    continue
-                if 'YIBs' in f:
-                    continue
-                ax = plt.subplot(5,2,count)
-                # print(count, f)
-                count = count + 1
-                # if not count == 9:
-                #     continue
-
-                fpath = join(fdir,f)
-                arr, originX, originY, pixelWidth, pixelHeight = ToRaster().raster2array(fpath)
-                arr = Tools().mask_999999_arr(arr, warning=False)
-                arr_m = ma.masked_where(np.isnan(arr), arr)
-                lon_list = np.arange(originX, originX + pixelWidth * arr.shape[1], pixelWidth)
-                lat_list = np.arange(originY, originY + pixelHeight * arr.shape[0], pixelHeight)
-                lon_list, lat_list = np.meshgrid(lon_list, lat_list)
-                m = Basemap(projection='cyl', llcrnrlat=30, urcrnrlat=90, llcrnrlon=-180, urcrnrlon=180, resolution='i',ax=ax)
-                ret = m.pcolormesh(lon_list, lat_list, arr_m, cmap='RdBu', zorder=-1, vmin=-0.1, vmax=0.1)
-                coastlines = m.drawcoastlines(zorder=100, linewidth=0.2)
-                plt.title(f.replace('_trend.tif','').replace('_S2','').replace('_lai','').replace('_LAI','').replace('_S2_lai','').replace('MCD','MODIS'))
-                # plt.show()
-            cax = plt.axes([0.5-0.15, 0.05, 0.3, 0.02])
-            cb = plt.colorbar(ret, ax=ax,cax=cax, orientation='horizontal')
-            cb.set_label(f'{period_rename_dict[period]} zscore trend (/yr)',labelpad=-40)
-            outf = join(outdir_i, f'{period}.pdf')
-            plt.subplots_adjust(wspace=0.029, hspace=0.)
-
-            plt.savefig(outf, dpi=600)
-            plt.close()
-            # plt.show()
-            # T.open_path_and_file(outdir)
-            # exit()
 
     def get_trend_analysis_flist(self):
 
@@ -2724,274 +2650,85 @@ class frequency_analysis():
             # plt.show()
         T.open_path_and_file(outdir)
 
-class frequency_analysis_for_two_period():  ## calculated
+class Trend_analysis_plot(): ## this one is creating spatial map of all products at the same layout
 
     def __init__(self):
-        # self.period='2012_2021'
-        self.period='2003_2011'
-
-        # This class is used to calculate the structural equation model
-        self.this_class_arr = result_root + rf'Data_frame\Frequency\Trendy_ensemble\\'
-
-        self.dff = self.this_class_arr + rf'frequency_dataframe_{self.period}.df'
-
-        Tools().mk_dir(self.this_class_arr, force=True)
-
-
         pass
-
-    def run(self):
-
-        ### 1.create frequency dataframe
-
-        # df=self.pick_greening_year_frequency_heatmap()
-
-        ## 2. add landcover and trend, row, and some attributes
-
-        # call the function in the class of 'build_dataframe'
-
-        ## 3. plot frequency heatmap
-
-        # df, dff = self.__load_df()
-        #
-        # self.frenquency_heatmap(df,self.period)
-
-        ## 4. plot frequency bar
-        self.frenquency_heatmap_bar()
-
-
-
-        pass
-
-    def __load_df(self):
-        dff = self.dff
-        df = T.load_df(dff)
-
-        return df, dff
-        # return df_early,dff
-
-    def clean_df(self, df):
-        df = df[df['row'] < 120]
-        # df = df[df['HI_class'] == 'Humid']
-        # df = df[df['HI_class'] == 'Dryland']
-        df = df[df['max_trend'] < 10]
-
-        df = df[df['landcover_GLC'] != 'Crop']
-
-        return df
-
-
-    def pick_greening_year_frequency_heatmap(self):  # 通过pick years and calculate frequency
-        period='2003_2011'
-
-        f_early_peak_LAI = result_root + rf'\\detrend_zscore\\{period}\\early_peak\\MCD.npy'
-        f_late_LAI = result_root + rf'\detrend_zscore\\{period}\\late\\MCD.npy'
-        outdir = result_root + rf'Data_frame/Frequency//MCD///'
-        outf = outdir + f'frequency_dataframe_{period}.df'
-        T.mk_dir(outdir, force=1)
-        dic_early_peak_LAI = dict(np.load(f_early_peak_LAI, allow_pickle=True, ).item())
-        dic_late_LAI = dict(np.load(f_late_LAI, allow_pickle=True, ).item())
-        # threshold_early_list=np.linspace(-2, 2, 21)
-        #
-        # threshold_late_list=np.linspace(-2, 2, 21)
-
-        threshold_early_list = [0, 0.5, 1, 1.5, 2, 2.5, 3]
-
-        threshold_late_list = [-3, -2.5, -2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2, 2.5, 3]
-
-        all_result_dic={}
-
-
-        for i in tqdm(range(len(threshold_early_list))):
-            if i >= len(threshold_early_list) - 1:
-                break
-
-            for j in range(len(threshold_late_list)):
-                if j >= len(threshold_late_list) - 1:
-                    break
-
-                early_threshold=threshold_early_list[i]
-                late_threshold=threshold_late_list[j]
-
-                spatial_dic={}
-                for pix in dic_early_peak_LAI:
-
-                    early_peak_LAI = dic_early_peak_LAI[pix]
-
-                    # print(len(early_peak_LAI))
-                    if not pix in dic_late_LAI:
-                        continue
-                    late_LAI=dic_late_LAI[pix]
-
-                    early_condition1=early_peak_LAI > threshold_early_list[i]
-                    early_condition2=early_peak_LAI < threshold_early_list[i + 1]
-                    early_condition_intersect_index=np.logical_and(early_condition1, early_condition2)
-
-                    index_early_peak_LAI = np.where(early_condition_intersect_index)
-                    index_early_peak_LAI=np.array(index_early_peak_LAI)
-                    index_early_peak_LAI=index_early_peak_LAI.flatten()
-
-                    if threshold_late_list[j]>=0:
-                        factor=1
-                    else:
-                        factor=-1
-                    late_condition1=late_LAI > threshold_late_list[j]
-                    late_condition2= late_LAI < threshold_late_list[j+1]
-
-
-                    late_LAI_condition_intersect_index = np.logical_and(late_condition1, late_condition2)
-
-                    index_late_LAI = np.where(late_LAI_condition_intersect_index)
-
-                    intersect_index = np.intersect1d(index_early_peak_LAI, index_late_LAI)
-                    if len(index_early_peak_LAI)==0:
-                        continue
-
-                    frequency=len(intersect_index)/len(index_early_peak_LAI)*100*factor
-
-
-
-                    spatial_dic[pix] = frequency
-                    column_name=f'{early_threshold:0.5f}-{late_threshold:0.5f}'
-                    all_result_dic[column_name]=spatial_dic
-
-        df=T.spatial_dics_to_df(all_result_dic)
-
-        T.save_df(df,outf)
-        T.df_to_excel(df,outf)
-        return df
-
-    def build_frequency_heatmap_dataframe(self,df, P_PET_fdir):
-
-
-        build_dataframe().add_row(df)
-        build_dataframe().add_NDVI_mask(df)
-        build_dataframe().add_GLC_landcover_data_to_df(df)
-        build_dataframe().add_max_trend_to_df(df)
-        P_PET_dic =build_dataframe().P_PET_ratio(P_PET_fdir)
-        P_PET_reclass_dic = build_dataframe(P_PET_fdir)
-        df = T.add_spatial_dic_to_df(df, P_PET_reclass_dic, 'HI_class')
-
-
-        pass
-
-    def frenquency_heatmap(self,df,period):
-
-        T.print_head_n(df, 10)
-
-        # df = df.drop_duplicates(subset=['pix'])
-        vals_dic = DIC_and_TIF().void_spatial_dic()
-        regions = ['Humid', 'Dryland']
-        cm = 1 / 2.54
-
-        for region in regions:
-            plt.figure(figsize=(15 * cm, 7 * cm))
-
-            df_temp = df[df['HI_class'] == region]
-
-            threshold_early_list = [0, 0.5, 1, 1.5, 2, 2.5, 3]
-
-            threshold_late_list = [-3, -2.5, -2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2, 2.5, 3]
-
-            threshold_late_list_reverse = threshold_late_list
-            threshold_early_list_reverse = threshold_early_list[::-1]
-
-            threshold_early_list_str = [f'{i:.5f}' for i in threshold_early_list]
-            threshold_late_list_str = [f'{i:.5f}' for i in threshold_late_list]
-
-            x_list = []
-            y_list = []
-            z_list = []
-
-            for x in threshold_early_list_str:
-                for y in threshold_late_list_str:
-                    key = f'{x}-{y}'
-                    if key not in df_temp.keys():
-                        continue
-                    vals = df_temp[key].to_list()
-                    # plt.hist(vals,bins=20)
-                    # plt.show()
-
-                    vals = np.array(vals)
-                    # vals[vals==0]=np.nan
-                    vals_mean = np.nanmean(vals)
-                    z_list.append(vals_mean)
-                    x_list.append(x)
-                    y_list.append(y)
-
-            z_list = np.array(z_list)
-            z_list = z_list.reshape(len(threshold_early_list_str) - 1, len(threshold_late_list_str) - 1)
-            # z_list_T = z_list.T
-            z_list_T = z_list
-            z_list_T = z_list_T[::-1]
-            label_matrix = abs(z_list_T)
-            label_matrix = np.round(label_matrix, 2)
-            print(label_matrix)
-            np.save(result_root + rf'Data_frame\\Frequency\\\\\Trendy_ensemble\\{region}_{period}.npy', label_matrix)
-
-
-
-            ax = sns.heatmap(z_list_T, annot=label_matrix, linewidths=0.75, yticklabels=threshold_early_list_str,
-                             xticklabels=threshold_late_list_str, cmap='RdBu', vmin=-15, vmax=15,
-                             annot_kws={'fontsize': 8},
-                             cbar_kws={'label': 'Frenquency (%)', 'ticks': [-15, -10, -5, 0, 5, 10, 15]}, fmt='.1f')
-            threshold_early_list_str_format = [f'{i:.2f}' for i in threshold_early_list_reverse]
-            threshold_late_list_str_format = [f'{i:.2f}' for i in threshold_late_list_reverse]
-
-            ax.set_xticklabels(threshold_late_list_str_format, rotation=45, horizontalalignment='right')
-
-            ax.set_yticklabels(threshold_early_list_str_format, rotation=0, horizontalalignment='right')
-            cbar = ax.collections[0].colorbar
-            cbar.ax.set_yticklabels([15, 10, 5, 0, 5, 10, 15])
-            # plt.tight_layout()
-
-            plt.title(f'Trendy_{region}')
-
-        plt.show()
-        plt.close()
-        #     plt.savefig(result_root + rf'Data_frame\\Frequency\\Trendy_{region}.pdf', dpi=300, )
-        #     plt.close()
-    def frenquency_heatmap_bar(self):
-
-        fdir = result_root+rf'Data_frame\Frequency\MCD\\'
-        outdir = result_root+rf'Data_frame\Frequency\MCD\\'
-        T.mk_dir(outdir)
-        for f in T.listdir(fdir):
-            if not f.endswith('.npy'):
-                continue
-            arr = np.load(join(fdir, f))
-            flag = 0
-            strong_stabilization_sum_list = []
-            weak_stabilization_sum_list = []
-            amplification_sum_list = []
-            for arr_i in arr:
-                strong_stabilization = arr_i[:6]
-                weak_stabilization = arr_i[6:12 - flag]
-                amplification = arr_i[12 - flag:]
-                flag += 1
-                strong_stabilization_sum = np.sum(strong_stabilization)
-                weak_stabilization_sum = np.sum(weak_stabilization)
-                amplification_sum = np.sum(amplification)
-
-                strong_stabilization_sum_list.append(strong_stabilization_sum)
-                weak_stabilization_sum_list.append(weak_stabilization_sum)
-                amplification_sum_list.append(amplification_sum)
-            strong_stabilization_sum_list = np.array(strong_stabilization_sum_list)
-            weak_stabilization_sum_list = np.array(weak_stabilization_sum_list)
-            amplification_sum_list = np.array(amplification_sum_list)
-
-            plt.bar(np.arange(len(arr)), strong_stabilization_sum_list, label='strong_stabilization')
-            plt.bar(np.arange(len(arr)), weak_stabilization_sum_list, bottom=strong_stabilization_sum_list,
-                    label='weak_stabilization')
-            plt.bar(np.arange(len(arr)), amplification_sum_list,
-                    bottom=strong_stabilization_sum_list + weak_stabilization_sum_list, label='amplification')
-            # plt.legend()
-            plt.title(f)
-            outf = join(outdir, f.replace('.npy', '.pdf'))
-            plt.savefig(outf)
+    def trend_analysis_plot(self):
+        outdir = result_root + rf'trend_analysis\\trend_analysis_plot\\'
+
+        period_list = [ 'late', 'early_peak', 'early_peak_late']
+        # flist = self.get_trend_analysis_flist()
+        flist_all_product = ['MCD_trend.tif', 'CABLE-POP_S2_lai_trend.tif', 'CLASSIC_S2_lai_trend.tif',
+                             'CLM5_trend.tif', 'IBIS_S2_lai_trend.tif',
+                             'ISAM_S2_LAI_trend.tif', 'ISBA-CTRIP_S2_lai_trend.tif',
+                             'JSBACH_S2_lai_trend.tif', 'LPX-Bern_S2_lai_trend.tif',
+                             'VISIT_S2_lai_trend.tif']
+        period_rename_dict = {
+            'late': 'Late season',
+            'early_peak': 'Early- and peak season',
+            'early_peak_late': 'Growing season',
+        }
+
+        # plt.show()
+        for period in period_list:
+            count = 1
+            plt.figure(figsize=(11, 7))
+            fdir = result_root + rf'trend_analysis\\zscore\\{period}\\'
+            outdir_i = join(outdir, period)
+            T.mk_dir(outdir_i, force=True)
+            for f in tqdm(flist_all_product):
+                if not f.endswith('.tif'):
+                    continue
+                if '_p_value' in f:
+                    continue
+
+                if 'MOD' in f:
+                    continue
+                if 'ensemble' in f:
+                    continue
+                if 'ORCHIDEE' in f:
+                    continue
+                if 'JULES' in f:
+                    continue
+                if 'LPJ' in f:
+                    continue
+                if 'OCN' in f:
+                    continue
+                if 'SDGVM' in f:
+                    continue
+                if 'YIBs' in f:
+                    continue
+                ax = plt.subplot(5,2,count)
+                # print(count, f)
+                count = count + 1
+                # if not count == 9:
+                #     continue
+
+                fpath = join(fdir,f)
+                arr, originX, originY, pixelWidth, pixelHeight = ToRaster().raster2array(fpath)
+                arr = Tools().mask_999999_arr(arr, warning=False)
+                arr_m = ma.masked_where(np.isnan(arr), arr)
+                lon_list = np.arange(originX, originX + pixelWidth * arr.shape[1], pixelWidth)
+                lat_list = np.arange(originY, originY + pixelHeight * arr.shape[0], pixelHeight)
+                lon_list, lat_list = np.meshgrid(lon_list, lat_list)
+                m = Basemap(projection='cyl', llcrnrlat=30, urcrnrlat=90, llcrnrlon=-180, urcrnrlon=180, resolution='i',ax=ax)
+                ret = m.pcolormesh(lon_list, lat_list, arr_m, cmap='RdBu', zorder=-1, vmin=-0.1, vmax=0.1)
+                coastlines = m.drawcoastlines(zorder=100, linewidth=0.2)
+                plt.title(f.replace('_trend.tif','').replace('_S2','').replace('_lai','').replace('_LAI','').replace('_S2_lai','').replace('MCD','MODIS'))
+                # plt.show()
+            cax = plt.axes([0.5-0.15, 0.05, 0.3, 0.02])
+            cb = plt.colorbar(ret, ax=ax,cax=cax, orientation='horizontal')
+            cb.set_label(f'{period_rename_dict[period]} zscore trend (/yr)',labelpad=-40)
+            outf = join(outdir_i, f'{period}.pdf')
+            plt.subplots_adjust(wspace=0.029, hspace=0.)
+
+            plt.savefig(outf, dpi=600)
             plt.close()
-            plt.show()
-        # T.open_path_and_file(outdir)
+            # plt.show()
+            # T.open_path_and_file(outdir)
+            # exit()
+
 
 class trends_seasonal_feedback():  ### 暂时不用 之前的最喜欢的图删掉了
     def __init__(self):
@@ -6618,14 +6355,14 @@ class ResponseFunction:  # figure 5 in paper
 
 
 def main():
-    nctotif().run()
+    # nctotif().run()
     # Resample().run()
     # TIFtoDIC().run()
     # Check_plot().run()
     # Phenology().run()
     # process_LAI().run()
     # statistic_analysis().run()
-    # frequency_analysis().run()
+    frequency_analysis().run()
     # frequency_analysis_for_two_period().run()
 
     # trends_seasonal_feedback().run()

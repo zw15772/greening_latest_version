@@ -352,9 +352,9 @@ class frequency_analysis():  # Amplification and Stabilization analysis
         # self.spatial_frequency()
         # self.spatial_frequency_pie_plot()
         # self.spatial_frequency_pie_plot1()
-        self.spatial_frequency_strong_weak_stab_statistic()
+        # self.spatial_frequency_strong_weak_stab_statistic()
         # self.spatial_frequency_strong_weak_stab_statistic_pft()
-        # self.frequency_heatmap_differences()
+        self.frequency_heatmap_differences()
         # self.spatial_frequency_hist_statistic()
         # self.spatial_frequency_delta_statistic() ### calculate percentage areas of model underestimation, overestimation and no change
         # self.spatial_frequency_bar_statistic()
@@ -633,7 +633,7 @@ class frequency_analysis():  # Amplification and Stabilization analysis
 
 
             ax=sns.heatmap(z_list_T, annot=label_matrix, linewidths=0.75,yticklabels=threshold_early_list_str,
-                           xticklabels=threshold_late_list_str,cmap='PiYG',vmin=-16,vmax=16,
+                           xticklabels=threshold_late_list_str,cmap='RdGy',vmin=-16,vmax=16,
                            annot_kws={'fontsize': 7},
                            cbar_kws={'label': 'frequency (%)','ticks':[-15, -10,-5, 0, 5, 10,15]},fmt='.1f')
             threshold_early_list_str_format = [f'{i:.2f}' for i in threshold_early_list_reverse]
